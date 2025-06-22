@@ -244,21 +244,5 @@ class HierachicalMCTSAgent(MCTSAgent):
         print(f"Maximum simulation depth reached without terminal state.")
         return {PLAYER1: 0, PLAYER2: 0}
 
-    ## Need to be checked, currently not used as not faster than single-threaded version
-    # def simulate(self, node: Node, player: BoardPiece, simulations: int = 10) -> dict[BoardPiece, int]:
-    #     """Simulate multiple random plays in parallel to speed up the process."""
-    #     with ThreadPoolExecutor() as executor:
-    #         future_to_simulation = {
-    #             executor.submit(self.simulate_parallel, node, player): i for i in range(simulations)
-    #         }
-    #         results = [future.result() for future in future_to_simulation]
-        
-    #     # Combine the results from multiple simulations
-    #     combined_result = {PLAYER1: 0, PLAYER2: 0}
-    #     for result in results:
-    #         for player, score in result.items():
-    #             combined_result[player] += score
-    #     return combined_result
-
     def __call__(self, board, player, saved_state, *args):
         return self.mcts_move(board, player, saved_state, *args)
