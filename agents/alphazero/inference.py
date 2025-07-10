@@ -4,9 +4,19 @@ from game_utils import check_move_status, MoveStatus, PlayerAction, BOARD_ROWS, 
 
 def policy_value(state: np.ndarray, model: torch.nn.Module, device='cpu'):
     """
-    Given a board state, returns:
-    - A dict mapping legal moves (actions) to prior probabilities
-    - A scalar value estimate for the current player
+    Evaluates a given Connect4 board state using a neural network model to produce move probabilities and a value estimate.
+    Args:
+        state (np.ndarray): The current board state as a 2D numpy array.
+        model (torch.nn.Module): The neural network model that outputs policy and value.
+        device (str, optional): The device to run the model on ('cpu' or 'cuda'). Defaults to 'cpu'.
+    Returns:
+        Tuple[Dict[int, float], float]:
+            - A dictionary mapping each legal move (column index) to its normalized prior probability.
+            - A scalar value estimate for the current player, as predicted by the model.
+    Notes:
+        - The function assumes the current player is 1 and the opponent is 2.
+        - Only legal moves are included in the returned policy dictionary.
+        - The policy probabilities are normalized over legal moves.
     """
     model.eval()
     

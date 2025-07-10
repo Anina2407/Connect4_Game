@@ -13,7 +13,6 @@ from game_utils import (
 from .node import Node
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor
-import cProfile
 
 
 class HierarchicalMCTSAgent(MCTSAgent):

@@ -22,6 +22,13 @@ class GameMetrics:
     """
 
     def __init__(self):
+        """
+        Initializes the instance variables for the class.
+
+        Attributes:
+            agents (dict): A dictionary to store agent-related information.
+            history (dict): A dictionary to keep track of historical data or metrics.
+        """
         self.agents = {}
         self.history = {}  
 

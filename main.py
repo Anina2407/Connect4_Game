@@ -13,7 +13,7 @@ from agents.alphazero.inference import policy_value
 import torch 
 
 
-def human_vs_agent(
+def agent_vs_agent(
     generate_move_1: GenMove,
     generate_move_2: GenMove = user_move,
     player_1: str = "Player 1",
@@ -25,7 +25,26 @@ def human_vs_agent(
     metrics: GameMetrics = None,
     verbose: bool = True  # Added verbose parameter to control output
 ) -> tuple:
-    """Run a game between two agents with integrated metrics tracking"""
+    """
+    Run a game between two agents (human or AI) with integrated metrics tracking.
+    This function simulates two games of Connect4 between two agents, alternating which agent goes first. 
+    It supports custom move generators, initialization routines, and tracks game metrics such as move times, legality, and results.
+    Args:
+        generate_move_1 (GenMove): Move generator function for the first agent.
+        generate_move_2 (GenMove, optional): Move generator function for the second agent. Defaults to user_move.
+        player_1 (str, optional): Name of the first player. Defaults to "Player 1".
+        player_2 (str, optional): Name of the second player. Defaults to "Player 2".
+        args_1 (tuple, optional): Additional arguments for the first agent's move generator. Defaults to ().
+        args_2 (tuple, optional): Additional arguments for the second agent's move generator. Defaults to ().
+        init_1 (Callable, optional): Initialization function for the first agent. Defaults to a no-op.
+        init_2 (Callable, optional): Initialization function for the second agent. Defaults to a no-op.
+        metrics (GameMetrics, optional): Metrics object for tracking game statistics. If None, a new GameMetrics is created.
+        verbose (bool, optional): If True, prints board states and move information. Defaults to True.
+    Returns:
+        tuple: A tuple containing:
+            - results (list): List of results for each game ('Draw', PLAYER1_PRINT, PLAYER2_PRINT, or 'Error').
+            - metrics (GameMetrics): The metrics object with recorded statistics.
+    """
     if metrics is None:
         metrics = GameMetrics()
     
@@ -119,7 +138,15 @@ def human_vs_agent(
     return results, metrics
 
 def run_mcts_vs_random(num_games: int = 100):
-    """Run multiple games between MCTS and Random agents with metrics tracking"""
+    """
+    Runs a series of Connect4 games between a Monte Carlo Tree Search (MCTS) agent and a Random agent, tracking detailed performance metrics.
+    Args:
+        num_games (int, optional): The number of games to play between the agents. Defaults to 100.
+    Returns:
+        GameMetrics: An object containing aggregated performance metrics from all games played.
+    Side Effects:
+        - Prints progress and detailed results to the console, including win counts for each agent (when starting and not starting), draws, errors, and comprehensive performance metrics.
+    """
     total_metrics = GameMetrics()
     
     mcts_wins_started = 0
@@ -134,7 +161,7 @@ def run_mcts_vs_random(num_games: int = 100):
        
         # Show board for first game, then just progress
         verbose = (i == 0)
-        results = human_vs_agent(generate_move_1=MCTSAgent(100), 
+        results = agent_vs_agent(generate_move_1=MCTSAgent(100), 
                                 generate_move_2=random_move, 
                                 player_1="MCTS Agent", 
                                 player_2="Random Agent",
@@ -217,7 +244,7 @@ def run_alphazero_vs_random(num_games: int, alpha_iterations=100):
             agent2 = alpha_agent
         
         # Run the game
-        results, _ = human_vs_agent(
+        results, _ = agent_vs_agent(
             agent1,
             agent2,
             player_1=player1,
@@ -260,7 +287,15 @@ def run_alphazero_vs_random(num_games: int, alpha_iterations=100):
     return total_metrics
 
 def run_alphazero_vs_mcts(num_games: int, alpha_iterations=100):
-    """Run multiple games between AlphaZero and MCTS agents"""
+    """
+    Run multiple games between an AlphaZero agent and a standard MCTS agent, alternating which agent starts first.
+    Tracks and prints the number of wins, draws, and errors for each agent depending on whether they started the game or not.
+    Args:
+        num_games (int): Number of games to play between the agents.
+        alpha_iterations (int, optional): Number of MCTS iterations for the AlphaZero agent. Defaults to 100.
+    Returns:
+        GameMetrics: An object containing aggregated metrics for all games played.
+    """
     total_metrics = GameMetrics()
     
     # Initialize agent
@@ -303,7 +338,7 @@ def run_alphazero_vs_mcts(num_games: int, alpha_iterations=100):
             agent2 = alpha_agent
         
         # Run the game
-        results, _ = human_vs_agent(
+        results, _ = agent_vs_agent(
             agent1,
             agent2,
             player_1=player1,
@@ -361,7 +396,7 @@ if __name__ == "__main__":
     metrics = GameMetrics()
 
     if mode == "1":
-        _, metrics = human_vs_agent(
+        _, metrics = agent_vs_agent(
             user_move,
             random_move,
             player_1="You",
@@ -369,7 +404,7 @@ if __name__ == "__main__":
             metrics=metrics
         )
     elif mode == "2":
-        _, metrics = human_vs_agent(
+        _, metrics = agent_vs_agent(
             user_move,
             MCTSAgent(100),
             player_1="You",
@@ -381,7 +416,7 @@ if __name__ == "__main__":
         num_games = int(input("How many games? "))
         metrics = run_mcts_vs_random(num_games)
     elif mode == "4":
-        _, metrics = human_vs_agent(
+        _, metrics = agent_vs_agent(
             user_move,
             user_move,
             player_1="Player 1",
@@ -393,7 +428,7 @@ if __name__ == "__main__":
         for i in range(num_games):
             print(f"Game {i + 1}/{num_games}")
             verbose = (i == 0)  # Show board for first game only
-            human_vs_agent(
+            agent_vs_agent(
             MCTSAgent(100),  
             HierarchicalMCTSAgent(iterationnumber=50),  
             player_1="MCTS Agent",
@@ -401,7 +436,7 @@ if __name__ == "__main__":
             metrics=metrics
             )
     elif mode == "6":
-        human_vs_agent(
+        agent_vs_agent(
             HierarchicalMCTSAgent(25),  
             random_move,  
             player_1="Hierarchical MCTS Agent",
@@ -429,5 +464,5 @@ if __name__ == "__main__":
         metrics.plot_results()
         for agent in metrics.agents:
             metrics.plot_move_duration_distribution(agent)
-    metrics.plot_performance_radar()
+        metrics.plot_performance_radar()
     
