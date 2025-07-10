@@ -112,79 +112,48 @@ class ResidualLayer(nn.Module):
         x = self.batch_norm2(self.conv2(x))
         return F.relu(x + residual)
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 class OutputLayer(nn.Module):
     """
-    OutputLayer is a neural network module designed for AlphaZero-style agents, providing separate output heads for policy and value predictions.
-    Args:
-        board_dims (tuple, optional): Dimensions of the game board as (rows, columns). Default is (6, 7) for Connect4.
-        policy_channels (int, optional): Number of channels in the policy head convolution. Default is 32.
-        value_channels (int, optional): Number of channels in the value head convolution. Default is 3.
-    Attributes:
-        value_conv (nn.Conv2d): Convolutional layer for the value head.
-        value_bn (nn.BatchNorm2d): Batch normalization for the value head.
-        value_fc1 (nn.Linear): First fully connected layer for the value head.
-        value_fc2 (nn.Linear): Second fully connected layer for the value head, outputs a scalar value.
-        policy_conv (nn.Conv2d): Convolutional layer for the policy head.
-        policy_bn (nn.BatchNorm2d): Batch normalization for the policy head.
-        policy_fc (nn.Linear): Fully connected layer for the policy head, outputs logits for each possible action.
-    Methods:
-        forward(x):
-            Computes the forward pass of the network.
-            Args:
-                x (torch.Tensor): Input tensor of shape (batch_size, 128, board_rows, board_cols).
-            Returns:
-                p (torch.Tensor): Policy probabilities for each action (batch_size, board_cols).
-                v (torch.Tensor): Value prediction for each input (batch_size, 1).
+    Output layer with separate heads for policy (with GAP) and value.
     """
-    def __init__(self, board_dims=(6, 7), policy_channels=32, value_channels=3):
-        """
-        Initializes the neural network layers for the AlphaZero agent's value and policy heads.
-        Args:
-            board_dims (tuple, optional): Dimensions of the game board as (rows, columns). Defaults to (6, 7).
-            policy_channels (int, optional): Number of output channels for the policy convolutional layer. Defaults to 32.
-            value_channels (int, optional): Number of output channels for the value convolutional layer. Defaults to 3.
-        Attributes:
-            value_conv (nn.Conv2d): Convolutional layer for the value head.
-            value_bn (nn.BatchNorm2d): Batch normalization for the value head.
-            value_fc1 (nn.Linear): First fully connected layer for the value head.
-            value_fc2 (nn.Linear): Second fully connected layer for the value head.
-            policy_conv (nn.Conv2d): Convolutional layer for the policy head.
-            policy_bn (nn.BatchNorm2d): Batch normalization for the policy head.
-            policy_fc (nn.Linear): Fully connected layer for the policy head.
-        """
+    def __init__(
+        self,
+        board_dims=(6, 7),
+        policy_channels: int = 32,
+        value_channels: int = 3
+    ):
         super().__init__()
+        # value head
         self.value_conv = nn.Conv2d(128, value_channels, kernel_size=1)
         self.value_bn = nn.BatchNorm2d(value_channels)
         self.value_fc1 = nn.Linear(value_channels * board_dims[0] * board_dims[1], 32)
         self.value_fc2 = nn.Linear(32, 1)
 
+        # policy head
         self.policy_conv = nn.Conv2d(128, policy_channels, kernel_size=1)
         self.policy_bn = nn.BatchNorm2d(policy_channels)
-        self.policy_fc = nn.Linear(policy_channels * board_dims[0] * board_dims[1], board_dims[1])
+        # FC only from channel dim, after spatial pooling
+        self.policy_fc = nn.Linear(policy_channels, board_dims[1])
 
     def forward(self, x):
-        """
-        Performs a forward pass through the neural network, producing policy and value outputs.
-        Args:
-            x (torch.Tensor): Input tensor representing the game state, typically of shape (batch_size, channels, height, width).
-        Returns:
-            Tuple[torch.Tensor, torch.Tensor]:
-                - p: Policy tensor with probabilities for each possible action, shape (batch_size, num_actions).
-                - v: Value tensor with predicted value for each input state, shape (batch_size, 1).
-        """
-        # Value head
-        v = F.relu(self.value_bn(self.value_conv(x)))
-        v = v.view(v.size(0), -1)
+        # ---- Value head ----
+        v = F.relu(self.value_bn(self.value_conv(x)))     # [B, C', H, W]
+        v = v.view(v.size(0), -1)                          # flatten all dims
         v = F.relu(self.value_fc1(v))
-        v = torch.tanh(self.value_fc2(v))
+        v = torch.tanh(self.value_fc2(v))                  # [B,1]
 
-        # Policy head
-        p = F.relu(self.policy_bn(self.policy_conv(x)))
-        p = p.view(p.size(0), -1)
-        p = F.log_softmax(self.policy_fc(p), dim=1).exp()
+        # ---- Policy head ----
+        p = F.relu(self.policy_bn(self.policy_conv(x)))    # [B, C, H, W]
+        p = p.mean(dim=(2, 3))                             # global‐avg pooling → [B, C]
+        logits = self.policy_fc(p)                         # [B, 7]
+        policy = F.softmax(logits, dim=1)                  # probabilities
 
-        return p, v
+        return policy, v
+       
 
 
 class Connect4Net(nn.Module):
@@ -237,38 +206,39 @@ class Connect4Net(nn.Module):
         return self.output_layer(x)
 
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
 class CustomLoss(nn.Module):
     """
-    CustomLoss is a PyTorch module that implements a combined loss function for training neural networks in reinforcement learning or game-playing scenarios, such as AlphaZero.
-    This loss function consists of two components:
-    1. Value Loss: Measures the mean squared error (MSE) between the predicted value and the target value.
-    2. Policy Loss: Measures the cross-entropy loss between the predicted policy distribution and the target policy distribution.
-    The forward method computes both losses and returns their mean sum as the final loss value.
-        target_value (torch.Tensor): Ground truth value tensor.
-        predicted_value (torch.Tensor): Predicted value tensor from the network.
-        target_policy (torch.Tensor): Ground truth policy tensor (probability distribution).
-        predicted_policy (torch.Tensor): Predicted policy tensor (probability distribution) from the network.
-        torch.Tensor: The mean combined loss consisting of value loss (MSE) and policy loss (cross-entropy).
+    Custom loss combining MSE value loss and KL‐divergence policy loss
+    in the AlphaZero style.
     """
-    def __init__(self):
-        """
-        Initializes the instance of the class and calls the initializer of the parent class.
-        """
+    def __init__(self, value_coef: float = 0.4, policy_coef: float = 0.6):
         super().__init__()
+        self.value_coef = value_coef
+        self.policy_coef = policy_coef
 
-    def forward(self, target_value, predicted_value, target_policy, predicted_policy):
-        """
-        Computes the combined loss for value and policy predictions.
+    def forward(
+        self,
+        target_value: torch.Tensor,          # shape [B,1]
+        predicted_value: torch.Tensor,       # shape [B,1]
+        target_policy: torch.Tensor,         # shape [B,7], sum to 1
+        predicted_policy: torch.Tensor       # shape [B,7], sum to 1
+    ) -> torch.Tensor:
+        # Value loss: MSE
+        value_loss = F.mse_loss(predicted_value, target_value)
 
-        Args:
-            target_value (torch.Tensor): The ground truth value tensor.
-            predicted_value (torch.Tensor): The predicted value tensor from the network.
-            target_policy (torch.Tensor): The ground truth policy tensor (probability distribution).
-            predicted_policy (torch.Tensor): The predicted policy tensor (probability distribution) from the network.
+        # Policy loss: KL(target || pred)
+        # compute log‐probs of the network
+        log_probs = torch.log(predicted_policy + 1e-8)
+        policy_loss = F.kl_div(
+            log_probs,           # log π_pred
+            target_policy,       # π_target
+            reduction="batchmean"
+        )
 
-        Returns:
-            torch.Tensor: The mean combined loss consisting of value loss (mean squared error) and policy loss (cross-entropy).
-        """
-        value_loss = (predicted_value - target_value) ** 2
-        policy_loss = torch.sum(-predicted_policy * (1e-8 + target_policy).log(), dim=1)
-        return (value_loss.view(-1) + policy_loss).mean()
+        # Weighted sum
+        return self.value_coef * value_loss + self.policy_coef * policy_loss
+#
