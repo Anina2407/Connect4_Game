@@ -179,7 +179,7 @@ class HierarchicalMCTSAgent(MCTSAgent):
     ) -> tuple[PlayerAction, np.ndarray]:
         """
         Select and apply a valid move from the current node's state.
-        This function first checks for immediate win or block opponent's win, and if none are found,
+        This function first checks for immediate win and if none are found,
         randomly selects an untried action, this is a more strategic approach than the original random selection.
 
         Args:
@@ -202,21 +202,7 @@ class HierarchicalMCTSAgent(MCTSAgent):
             if Node(next_state, player).check_terminal_state()[0]:
                 return action, next_state
 
-        # 2. Check for opponent's immediate win (block it)
-        for opp_action in range(node.state.shape[1]):
-                if (
-                    check_move_status(node.state, PlayerAction(opp_action))
-                    == MoveStatus.IS_VALID
-                ):
-                    simulated = node.state.copy()
-                    apply_player_action(simulated, opp_action, opponent)
-                    is_terminal, result = Node(simulated, opponent).check_terminal_state()
-                    if is_terminal and result[opponent] == 1:
-                        return opp_action, apply_player_action(
-                            node.state.copy(), opp_action, player
-                        )
-
-        # 3. Score remaining candidate moves
+       # 2. Score remaining candidate moves
         best_score = -float("inf")
         best_actions = []
 

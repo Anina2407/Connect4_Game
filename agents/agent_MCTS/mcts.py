@@ -218,17 +218,33 @@ class MCTSAgent:
         Returns:
             tuple[PlayerAction, np.ndarray]: The selected action and the resulting game state.
         """
-        opponent = get_opponent(player)
-
-        for action in node.untried_actions:
+        if node.untried_actions:
+            action = np.random.choice(list(node.untried_actions))
             next_state = node.state.copy()
             apply_player_action(next_state, action, player)
+            return action, next_state
 
-        # Otherwise, pick randomly as before
-        action = np.random.choice(list(node.untried_actions))
+        print("⚠️ Warning: No untried_actions left — choosing from legal moves.")
+        valid_moves = node.get_valid_moves()
+        if not valid_moves:
+            raise RuntimeError("No valid moves left to expand — should not happen.")
+        action = np.random.choice(valid_moves)
         next_state = node.state.copy()
         apply_player_action(next_state, action, player)
         return action, next_state
+
+        
+            # opponent = get_opponent(player)
+
+        # for action in node.untried_actions:
+        #     next_state = node.state.copy()
+        #     apply_player_action(next_state, action, player)
+
+        # # Otherwise, pick randomly as before
+        # action = np.random.choice(list(node.untried_actions))
+        # next_state = node.state.copy()
+        # apply_player_action(next_state, action, player)
+        # return action, next_state
 
     def __call__(self, board, player, saved_state, *args):
         return self.mcts_move(board, player, saved_state, *args)

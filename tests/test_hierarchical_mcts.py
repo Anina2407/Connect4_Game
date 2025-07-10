@@ -72,18 +72,3 @@ def test_expand_to_next_children_immediate_win():
     assert (next_state[5, 3] == PLAYER1) or (next_state[4, 3] == PLAYER1)
 
 
-def test_expand_to_next_children_block_opponent():
-    """
-    Agent should block opponent's immediate win
-    """
-    ag = agent()
-    board = empty_board()
-    board[5, 0:3] = PLAYER2
-    node = Node(board, PLAYER1)
-    node.untried_actions = [
-        PlayerAction(i)
-        for i in range(7)
-        if check_move_status(board, PlayerAction(i)) == MoveStatus.IS_VALID
-    ]
-    action, next_state = ag.expand_to_next_children(PLAYER1, node)
-    assert int(action) == 3
