@@ -16,8 +16,7 @@ class AlphazeroMCTSAgent(MCTSAgent):
     """MCTS agent for Connect4 useable for alphazero implementation.
     This agent changes the base MCTSAgent by several parts:
     - Use prior knowledge for best child choose and so change UCT to PUCT function.
-    - ...
-    - ...
+    
     Functions:
         mcts_move(board, root_player, saved_state):
             Performs the MCTS move based on the current board state and player.
@@ -31,6 +30,18 @@ class AlphazeroMCTSAgent(MCTSAgent):
         self.policy_value = policy_value
 
     def simulate(self, node: Node, player: BoardPiece):
+        """
+        Simulates a play-out from the given node using the policy-value function.
+        If the node is terminal, returns the result of the game.
+        Otherwise, evaluates the current state using the policy-value network and returns
+        the estimated value for both players from the root player's perspective.
+        Args:
+            node (Node): The current node in the search tree.
+            player (BoardPiece): The player for whom the simulation is being run.
+        Returns:
+            dict: A dictionary mapping each player (PLAYER1, PLAYER2) to their respective
+                  estimated value (float) from the root player's perspective.
+        """
         if node.is_terminal:
             return node.result
         
