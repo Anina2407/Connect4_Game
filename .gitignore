@@ -183,4 +183,6 @@ Thumbs.db        # Windows thumbnail cache
 *.webp
 *.ico
 
-.vscode/*
+.vscode/
+
+checkpoints/
