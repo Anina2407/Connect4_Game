@@ -13,6 +13,7 @@ from game_utils import (
 from agents.alphazero.network import Connect4Net, CustomLoss
 from agents.alphazero.inference import policy_value
 from agents.agent_MCTS.alphazero_mcts import AlphazeroMCTSAgent
+from torch.optim.lr_scheduler import StepLR 
 
 
 class ReplayBuffer:
@@ -181,7 +182,7 @@ def self_play(model, device, mcts_iterations=500, temperature=1.0):
 
 def train_alphazero(
     num_iterations=10,
-    num_self_play_games=100,
+    num_self_play_games=300,
     num_epochs=10,
     batch_size=128,
     mcts_iterations=100,
@@ -213,7 +214,8 @@ def train_alphazero(
 
     model = Connect4Net().to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    loss_fn = CustomLoss()
+    scheduler = StepLR(optimizer, step_size=10, gamma=0.5)
+    loss_fn = CustomLoss()    
     replay_buffer = ReplayBuffer(capacity=buffer_size)
     start_iteration = 0
 
@@ -272,6 +274,11 @@ def train_alphazero(
                     epoch_loss += loss.item()
                 print(f"  Epoch {epoch+1}/{num_epochs} - Loss: {epoch_loss / len(train_loader):.4f}")
 
+        # Decay learning rate
+        scheduler.step()
+        current_lr = scheduler.get_last_lr()[0]
+        print(f"Current learning rate: {current_lr:.6f}")
+
         checkpoint_path = os.path.join(checkpoint_dir, f"iteration_{iteration+1}.pt")
         buffer_path = os.path.join(checkpoint_dir, f"buffer_{iteration+1}.pt")
 
@@ -298,13 +305,13 @@ if __name__ == "__main__":
     print(f"Using device: {device}")
 
     config = {
-        'num_iterations': 100,
+        'num_iterations': 20,
         'num_self_play_games': 500,
-        'num_epochs': 10,
+        'num_epochs': 15,
         'batch_size': 128,
         'mcts_iterations': 100,
         'learning_rate': 0.001,
-        'buffer_size': 10000,
+        'buffer_size': 20000,
         'device': device,
         'checkpoint_dir': "checkpoints",
         'resume_checkpoint': "iteration_20.pt"
