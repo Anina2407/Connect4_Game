@@ -113,7 +113,7 @@ class BoardDataset(Dataset):
         return state, policy, value
 
 
-def self_play(model, device, mcts_iterations=100, temperature=1.0):
+def self_play(model, device, mcts_iterations=500, temperature=1.0):
     """
     Play a single self-play game using MCTS to generate training data.
 
@@ -180,7 +180,7 @@ def self_play(model, device, mcts_iterations=100, temperature=1.0):
 
 
 def train_alphazero(
-    num_iterations=100,
+    num_iterations=10,
     num_self_play_games=100,
     num_epochs=10,
     batch_size=128,

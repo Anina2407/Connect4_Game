@@ -136,21 +136,20 @@ class OutputLayer(nn.Module):
         # policy head
         self.policy_conv = nn.Conv2d(128, policy_channels, kernel_size=1)
         self.policy_bn = nn.BatchNorm2d(policy_channels)
-        # FC only from channel dim, after spatial pooling
         self.policy_fc = nn.Linear(policy_channels, board_dims[1])
 
     def forward(self, x):
         # ---- Value head ----
-        v = F.relu(self.value_bn(self.value_conv(x)))     # [B, C', H, W]
-        v = v.view(v.size(0), -1)                          # flatten all dims
+        v = F.relu(self.value_bn(self.value_conv(x)))     
+        v = v.view(v.size(0), -1)                          
         v = F.relu(self.value_fc1(v))
-        v = torch.tanh(self.value_fc2(v))                  # [B,1]
+        v = torch.tanh(self.value_fc2(v))                  
 
         # ---- Policy head ----
-        p = F.relu(self.policy_bn(self.policy_conv(x)))    # [B, C, H, W]
-        p = p.mean(dim=(2, 3))                             # global‐avg pooling → [B, C]
-        logits = self.policy_fc(p)                         # [B, 7]
-        policy = F.softmax(logits, dim=1)                  # probabilities
+        p = F.relu(self.policy_bn(self.policy_conv(x)))     
+        p = p.mean(dim=(2, 3))                             
+        logits = self.policy_fc(p)                         
+        policy = F.softmax(logits, dim=1)                  
 
         return policy, v
        
@@ -222,23 +221,22 @@ class CustomLoss(nn.Module):
 
     def forward(
         self,
-        target_value: torch.Tensor,          # shape [B,1]
-        predicted_value: torch.Tensor,       # shape [B,1]
-        target_policy: torch.Tensor,         # shape [B,7], sum to 1
-        predicted_policy: torch.Tensor       # shape [B,7], sum to 1
-    ) -> torch.Tensor:
+        target_value: torch.Tensor,          
+        predicted_value: torch.Tensor,      
+        target_policy: torch.Tensor,         
+        predicted_policy: torch.Tensor       
+        ) -> torch.Tensor:
         # Value loss: MSE
         value_loss = F.mse_loss(predicted_value, target_value)
 
         # Policy loss: KL(target || pred)
-        # compute log‐probs of the network
         log_probs = torch.log(predicted_policy + 1e-8)
         policy_loss = F.kl_div(
-            log_probs,           # log π_pred
-            target_policy,       # π_target
+            log_probs,           
+            target_policy,       
             reduction="batchmean"
         )
 
-        # Weighted sum
+        
         return self.value_coef * value_loss + self.policy_coef * policy_loss
 #
