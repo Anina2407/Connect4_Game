@@ -153,6 +153,21 @@ class OutputLayer(nn.Module):
 
         return policy, v
        
+class SimpleConvBody(nn.Module):
+    """
+    Simpler convolutional stack without residuals.
+    """
+    def __init__(self, num_layers=5, channels=128):
+        super().__init__()
+        layers = []
+        for _ in range(num_layers):
+            layers.append(nn.Conv2d(channels, channels, kernel_size=3, padding=1, bias=False))
+            layers.append(nn.BatchNorm2d(channels))
+            layers.append(nn.ReLU(inplace=True))
+        self.conv_stack = nn.Sequential(*layers)
+
+    def forward(self, x):
+        return self.conv_stack(x)
 
 
 class Connect4Net(nn.Module):
@@ -172,7 +187,7 @@ class Connect4Net(nn.Module):
         model = Connect4Net(num_residual_layers=19)
         output = model(input_tensor)
     """
-    def __init__(self, num_residual_layers=19):
+    def __init__(self, num_conv_layers=5):
         """
         Initializes the neural network model for AlphaZero.
 
@@ -186,7 +201,7 @@ class Connect4Net(nn.Module):
         """
         super().__init__()
         self.initial_layer = InitialConvLayer()
-        self.residual_layers = nn.ModuleList([ResidualLayer() for _ in range(num_residual_layers)])
+        self.conv_body = SimpleConvBody(num_layers=num_conv_layers)
         self.output_layer = OutputLayer()
 
     def forward(self, x):
@@ -200,9 +215,12 @@ class Connect4Net(nn.Module):
             torch.Tensor: Output tensor after passing through the initial layer, residual layers, and output layer.
         """
         x = self.initial_layer(x)
-        for layer in self.residual_layers:
-            x = layer(x)
+        x = self.conv_body(x)
         return self.output_layer(x)
+        # x = self.initial_layer(x)
+        # for layer in self.residual_layers:
+        #     x = layer(x)
+        # return self.output_layer(x)
 
 
 import torch

@@ -299,7 +299,7 @@ if __name__ == "__main__":
 
     config = {
         'num_iterations': 100,
-        'num_self_play_games': 100,
+        'num_self_play_games': 500,
         'num_epochs': 10,
         'batch_size': 128,
         'mcts_iterations': 100,
