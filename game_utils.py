@@ -181,8 +181,6 @@ def connected_four(board: np.ndarray, player: BoardPiece) -> bool:
         or test_connect_vertical(board, player)
         or test_connect_diagonal(board, player))
  
-
-
 def test_connect_horizontal(board: np.ndarray, player: BoardPiece) -> bool:
     """
     Returns True if there are four adjacent pieces equal to `player` arranged
@@ -301,7 +299,6 @@ def check_move_status(board: np.ndarray, column: Any) -> MoveStatus:
         MoveStatus: The status of the move (valid, wrong type, out of bounds, or full column).
     """
 
-    # Check Type of column
     if not isinstance(column, PlayerAction):
         return MoveStatus.WRONG_TYPE
 

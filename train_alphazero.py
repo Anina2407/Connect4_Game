@@ -6,24 +6,33 @@ import os
 import time
 from collections import deque
 from game_utils import (
-    initialize_game_state, BoardPiece, PLAYER1, PLAYER2,
-    apply_player_action, check_end_state, GameState,
-    get_opponent, PlayerAction
+    initialize_game_state,
+    BoardPiece,
+    PLAYER1,
+    PLAYER2,
+    apply_player_action,
+    check_end_state,
+    GameState,
+    get_opponent,
+    PlayerAction,
 )
 from agents.alphazero.network import Connect4Net, CustomLoss
 from agents.alphazero.inference import policy_value
 from agents.agent_MCTS.alphazero_mcts import AlphazeroMCTSAgent
-from torch.optim.lr_scheduler import StepLR 
+from torch.optim.lr_scheduler import StepLR
 
 
 class ReplayBuffer:
     """
     A buffer to store gameplay experiences for training the AlphaZero model.
-
-    Args:
-        capacity (int): Maximum number of experiences to store.
     """
+
     def __init__(self, capacity=10000):
+        """
+        Initialize the replay buffer with a specified capacity.
+        Args:
+            capacity (int): Maximum number of experiences to store.
+        """
         self.buffer = deque(maxlen=capacity)
 
     def add(self, experience):
@@ -35,7 +44,7 @@ class ReplayBuffer:
         """
         self.buffer.append(experience)
 
-    def sample(self, batch_size):
+    def sample(self, batch_size) -> list:
         """
         Sample a batch of experiences.
 
@@ -48,7 +57,7 @@ class ReplayBuffer:
         indices = np.random.choice(len(self.buffer), batch_size, replace=False)
         return [self.buffer[i] for i in indices]
 
-    def __len__(self):
+    def __len__(self) -> int:
         """Return the current size of the buffer."""
         return len(self.buffer)
 
@@ -86,6 +95,7 @@ class BoardDataset(Dataset):
     Args:
         data (list): List of (state, policy, value) tuples.
     """
+
     def __init__(self, data):
         """Requires a list of tuples (state, policy, value) for initialization.
         Args:
@@ -101,11 +111,11 @@ class BoardDataset(Dataset):
             self.policies.append(policy)
             self.values.append(value)
 
-    def __len__(self):
+    def __len__(self) -> int:
         "Return the number of samples in the dataset."
         return len(self.states)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx) -> tuple:
         """
         Retrieve a single training sample.
 
@@ -121,7 +131,7 @@ class BoardDataset(Dataset):
         return state, policy, value
 
 
-def self_play(model, device, mcts_iterations=500, temperature=1.0):
+def self_play(model, device, mcts_iterations=500, temperature=1.0) -> list:
     """
     Play a single self-play game using MCTS to generate training data.
 
@@ -137,7 +147,7 @@ def self_play(model, device, mcts_iterations=500, temperature=1.0):
     board = initialize_game_state()
     agent = AlphazeroMCTSAgent(
         lambda state: policy_value(state, model, device),
-        iterationnumber=mcts_iterations
+        iterationnumber=mcts_iterations,
     )
     saved_state = None
     current_player = PLAYER1
@@ -157,11 +167,13 @@ def self_play(model, device, mcts_iterations=500, temperature=1.0):
             policy = np.power(policy, 1 / temperature)
             policy /= np.sum(policy)
 
-        state_rep = np.stack([
-            (board == current_player).astype(np.float32),
-            (board == get_opponent(current_player)).astype(np.float32),
-            np.ones_like(board, dtype=np.float32)
-        ])
+        state_rep = np.stack(
+            [
+                (board == current_player).astype(np.float32),
+                (board == get_opponent(current_player)).astype(np.float32),
+                np.ones_like(board, dtype=np.float32),
+            ]
+        )
 
         game_history.append((state_rep, policy, current_player))
 
@@ -195,7 +207,7 @@ def train_alphazero(
     mcts_iterations=100,
     learning_rate=0.001,
     buffer_size=30000,
-    device='cpu',
+    device="cpu",
     checkpoint_dir="checkpoints",
     resume_checkpoint=None,
     override_iteration=None,
@@ -214,6 +226,7 @@ def train_alphazero(
         device (str): Computation device ('cpu' or 'cuda').
         checkpoint_dir (str): Path to save checkpoints.
         resume_checkpoint (str or None): Resume from this checkpoint if provided.
+        override_iteration (int or None): If provided, overrides the starting iteration.
 
     Returns:
         model (torch.nn.Module): Trained model.
@@ -223,7 +236,7 @@ def train_alphazero(
     model = Connect4Net().to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     scheduler = StepLR(optimizer, step_size=5, gamma=0.5)
-    loss_fn = CustomLoss()    
+    loss_fn = CustomLoss()
     replay_buffer = ReplayBuffer(capacity=buffer_size)
 
     start_iteration = override_iteration if override_iteration is not None else 0
@@ -233,10 +246,10 @@ def train_alphazero(
         checkpoint_path = os.path.join(checkpoint_dir, resume_checkpoint)
         if os.path.exists(checkpoint_path):
             checkpoint = torch.load(checkpoint_path, map_location=device)
-            model.load_state_dict(checkpoint['model_state_dict'])
-            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            if 'scheduler_state_dict' in checkpoint:
-                scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+            model.load_state_dict(checkpoint["model_state_dict"])
+            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+            if "scheduler_state_dict" in checkpoint:
+                scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
 
             buffer_path = os.path.join(
                 checkpoint_dir, f"buffer_{resume_checkpoint.split('_')[-1]}"
@@ -245,7 +258,9 @@ def train_alphazero(
                 replay_buffer = ReplayBuffer.load(buffer_path, capacity=buffer_size)
                 print(f"Loaded replay buffer with {len(replay_buffer)} experiences")
         else:
-            print(f"Warning: Checkpoint {checkpoint_path} not found. Starting from scratch.")
+            print(
+                f"Warning: Checkpoint {checkpoint_path} not found. Starting from scratch."
+            )
 
     for iteration in range(start_iteration, num_iterations):
         print(f"\n=== Iteration {iteration+1}/{num_iterations} ===")
@@ -264,7 +279,9 @@ def train_alphazero(
             sample_size = min(len(replay_buffer), 2048)
             train_data = replay_buffer.sample(sample_size)
             train_dataset = BoardDataset(train_data)
-            train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+            train_loader = DataLoader(
+                train_dataset, batch_size=batch_size, shuffle=True
+            )
 
             model.train()
             for epoch in range(num_epochs):
@@ -282,7 +299,9 @@ def train_alphazero(
                     optimizer.step()
 
                     epoch_loss += loss.item()
-                print(f"  Epoch {epoch+1}/{num_epochs} - Loss: {epoch_loss / len(train_loader):.4f}")
+                print(
+                    f"  Epoch {epoch+1}/{num_epochs} - Loss: {epoch_loss / len(train_loader):.4f}"
+                )
 
         # Decay learning rate
         scheduler.step()
@@ -292,12 +311,15 @@ def train_alphazero(
         checkpoint_path = os.path.join(checkpoint_dir, f"iteration_{iteration+1}.pt")
         buffer_path = os.path.join(checkpoint_dir, f"buffer_{iteration+1}.pt")
 
-        torch.save({
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'iteration': iteration,
-            'scheduler_state_dict': scheduler.state_dict(),
-        }, checkpoint_path)
+        torch.save(
+            {
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "iteration": iteration,
+                "scheduler_state_dict": scheduler.state_dict(),
+            },
+            checkpoint_path,
+        )
 
         replay_buffer.save(buffer_path)
 
@@ -311,7 +333,7 @@ def train_alphazero(
 if __name__ == "__main__":
     """
     Entry point for training the AlphaZero model.
-    
+
     This script supports **manual configuration** of training behavior. You can set which
     iteration to resume from and whether to repeat that iteration or continue to the next one.
 
@@ -329,7 +351,7 @@ if __name__ == "__main__":
     resume_checkpoint = "iteration_20.pt"
     repeat = True   # Repeats iteration 20 with same learning rate
     """
-    
+
     # Device detection
     if torch.cuda.is_available():
         device = torch.device("cuda")
@@ -349,7 +371,9 @@ if __name__ == "__main__":
     override_iteration = None
     if resume_checkpoint:
         try:
-            iter_num = int(resume_checkpoint.replace("iteration_", "").replace(".pt", ""))
+            iter_num = int(
+                resume_checkpoint.replace("iteration_", "").replace(".pt", "")
+            )
             override_iteration = iter_num if repeat else iter_num + 1
         except ValueError:
             print("Error: Could not parse iteration number from checkpoint name.")
@@ -357,16 +381,16 @@ if __name__ == "__main__":
 
     # Training config
     config = {
-        'num_iterations': 100,
-        'num_self_play_games': 300,
-        'num_epochs': 15,
-        'batch_size': 128,
-        'mcts_iterations': 100,
-        'learning_rate': 0.001,
-        'buffer_size': 30000,
-        'device': device,
-        'checkpoint_dir': "checkpoints",
-        'resume_checkpoint': resume_checkpoint
+        "num_iterations": 100,
+        "num_self_play_games": 300,
+        "num_epochs": 15,
+        "batch_size": 128,
+        "mcts_iterations": 100,
+        "learning_rate": 0.001,
+        "buffer_size": 30000,
+        "device": device,
+        "checkpoint_dir": "checkpoints",
+        "resume_checkpoint": resume_checkpoint,
     }
 
     trained_model = train_alphazero(**config, override_iteration=override_iteration)

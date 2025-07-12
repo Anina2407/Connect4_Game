@@ -1,35 +1,16 @@
-import os
-import time
-import torch
 from typing import Callable
-
-from game_utils import (
-    PLAYER1, PLAYER2, PLAYER1_PRINT, PLAYER2_PRINT,
-    GameState, MoveStatus, GenMove,
-    initialize_game_state, pretty_print_board,
-    apply_player_action, check_end_state, check_move_status,
-)
-
+import time
+from game_utils import PLAYER1, PLAYER2, PLAYER1_PRINT, PLAYER2_PRINT, GameState, MoveStatus, GenMove
+from game_utils import initialize_game_state, pretty_print_board, apply_player_action, check_end_state, check_move_status
 from agents.agent_human_user import user_move
 from agents.agent_random import generate_move as random_move
+from metrics.metrics import GameMetrics
 from agents.agent_MCTS.mcts import MCTSAgent
 from agents.agent_MCTS.hierarchical_mcts import HierarchicalMCTSAgent
 from agents.agent_MCTS.alphazero_mcts import AlphazeroMCTSAgent
 from agents.alphazero.network import Connect4Net
 from agents.alphazero.inference import policy_value
-
-from metrics.metrics import GameMetrics
-
-# Device selection
-if torch.cuda.is_available():
-    device = torch.device("cuda")
-    print("Using CUDA GPU")
-elif torch.backends.mps.is_available():
-    device = torch.device("mps")
-    print("Using Apple MPS backend")
-else:
-    device = torch.device("cpu")
-    print("Using CPU")
+import torch 
 
 
 def agent_vs_agent(
@@ -42,11 +23,31 @@ def agent_vs_agent(
     init_1: Callable = lambda board, player: None,
     init_2: Callable = lambda board, player: None,
     metrics: GameMetrics = None,
-    verbose: bool = True
+    verbose: bool = True  # Added verbose parameter to control output
 ) -> tuple:
+    """
+    Run a game between two agents (human or AI) with integrated metrics tracking.
+    This function simulates two games of Connect4 between two agents, alternating which agent goes first. 
+    It supports custom move generators, initialization routines, and tracks game metrics such as move times, legality, and results.
+    Args:
+        generate_move_1 (GenMove): Move generator function for the first agent.
+        generate_move_2 (GenMove, optional): Move generator function for the second agent. Defaults to user_move.
+        player_1 (str, optional): Name of the first player. Defaults to "Player 1".
+        player_2 (str, optional): Name of the second player. Defaults to "Player 2".
+        args_1 (tuple, optional): Additional arguments for the first agent's move generator. Defaults to ().
+        args_2 (tuple, optional): Additional arguments for the second agent's move generator. Defaults to ().
+        init_1 (Callable, optional): Initialization function for the first agent. Defaults to a no-op.
+        init_2 (Callable, optional): Initialization function for the second agent. Defaults to a no-op.
+        metrics (GameMetrics, optional): Metrics object for tracking game statistics. If None, a new GameMetrics is created.
+        verbose (bool, optional): If True, prints board states and move information. Defaults to True.
+    Returns:
+        tuple: A tuple containing:
+            - results (list): List of results for each game ('Draw', PLAYER1_PRINT, PLAYER2_PRINT, or 'Error').
+            - metrics (GameMetrics): The metrics object with recorded statistics.
+    """
     if metrics is None:
         metrics = GameMetrics()
-
+    
     players = (PLAYER1, PLAYER2)
     results = []
     for play_first in (1, -1):
@@ -64,35 +65,45 @@ def agent_vs_agent(
         for init, player in zip(inits, players):
             init(initialize_game_state(), player)
 
-        saved_state = {PLAYER1: None, PLAYER2: None}
+        saved_state: dict = {PLAYER1: None, PLAYER2: None}
         board = initialize_game_state()
         player_name_map = {players[0]: player_names[0], players[1]: player_names[1]}
 
         playing = True
         while playing:
-            for player, player_name, gen_move, args in zip(players, player_names, gen_moves, gen_args):
+            for player, player_name, gen_move, args in zip(
+                players, player_names, gen_moves, gen_args,
+            ):
                 t0 = time.time()
-                if verbose:
+                if verbose:  # Only show board if verbose mode
                     print(pretty_print_board(board))
-                    print(f'{player_name} you are playing with {PLAYER1_PRINT if player == PLAYER1 else PLAYER2_PRINT}')
+                    print(
+                        f'{player_name} you are playing with {PLAYER1_PRINT if player == PLAYER1 else PLAYER2_PRINT}'
+                    )
 
                 action, saved_state[player] = gen_move(
-                    board.copy(), player, saved_state[player], player_name, metrics, *args
+                    board.copy(),  
+                    player, saved_state[player], player_name, metrics, *args
                 )
                 elapsed = time.time() - t0
-                if verbose:
+                if verbose:  # Only show move time if verbose
                     print(f'Move time: {elapsed:.3f}s')
-
+                
+                # Record move metrics
                 move_status = check_move_status(board, action)
                 is_legal = move_status == MoveStatus.IS_VALID
                 metrics.record_move(player_name, elapsed, is_legal)
-
+                
                 if move_status != MoveStatus.IS_VALID:
-                    print(f'Move {action} is invalid: {move_status.value}')
-                    print(f'{player_name} lost by making an illegal move.')
+                    if verbose:  # Only show error if verbose
+                        print(f'Move {action} is invalid: {move_status.value}')
+                        print(f'{player_name} lost by making an illegal move.')
+                    
+                    # Record results for illegal move
                     metrics.record_result(player_name, 'loss')
                     opponent = PLAYER2 if player == PLAYER1 else PLAYER1
                     metrics.record_result(player_name_map[opponent], 'win')
+                    
                     playing = False
                     results.append('Error')
                     break
@@ -101,10 +112,12 @@ def agent_vs_agent(
                 end_state = check_end_state(board, player)
 
                 if end_state != GameState.STILL_PLAYING:
-                    if verbose:
+                    if verbose:  # Only show final board if verbose
                         print(pretty_print_board(board))
                     if end_state == GameState.IS_DRAW:
-                        print('Game ended in draw')
+                        if verbose:  # Only show result if verbose
+                            print('Game ended in draw')
+                        # Record draw for both players
                         for name in player_name_map.values():
                             metrics.record_result(name, 'draw')
                         results.append('Draw')
@@ -112,136 +125,260 @@ def agent_vs_agent(
                         winner_name = player_name
                         loser = PLAYER2 if player == PLAYER1 else PLAYER1
                         loser_name = player_name_map[loser]
-                        print(f'{winner_name} won playing {PLAYER1_PRINT if player == PLAYER1 else PLAYER2_PRINT}')
+                        if verbose:  # Only show result if verbose
+                            print(f'{winner_name} won playing {PLAYER1_PRINT if player == PLAYER1 else PLAYER2_PRINT}')
+                        
+                        # Record win/loss results
                         metrics.record_result(winner_name, 'win')
                         metrics.record_result(loser_name, 'loss')
+                        
+                        playing = False
                         results.append(PLAYER1_PRINT if player == PLAYER1 else PLAYER2_PRINT)
-                    playing = False
                     break
     return results, metrics
 
-
-def run_alphazero_vs_mcts(num_games: int, alpha_iterations=100):
+def run_mcts_vs_random(num_games: int = 100):
+    """
+    Runs a series of Connect4 games between a Monte Carlo Tree Search (MCTS) agent and a Random agent, tracking detailed performance metrics.
+    Args:
+        num_games (int, optional): The number of games to play between the agents. Defaults to 100.
+    Returns:
+        GameMetrics: An object containing aggregated performance metrics from all games played.
+    Side Effects:
+        - Prints progress and detailed results to the console, including win counts for each agent (when starting and not starting), draws, errors, and comprehensive performance metrics.
+    """
     total_metrics = GameMetrics()
-    model = Connect4Net()
-    checkpoint = torch.load(f"checkpoints/iteration_{itterarionNumber}.pt", map_location=device)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    model.to(device)
-    model.eval()
-
-    alpha_agent = AlphazeroMCTSAgent(
-        policy_value=lambda state: policy_value(state, model, device),
-        iterationnumber=alpha_iterations
-    )
-
-    alpha_wins_started = 0
-    alpha_wins_not_started = 0
+    
     mcts_wins_started = 0
-    mcts_wins_not_started = 0
+    mcts_wins_not_started = 0  
+    random_wins_started = 0
+    random_wins_not_started = 0
     draws = 0
     errors = 0
-
-    for game_idx in range(num_games):
-        print(f"\nGame {game_idx+1}/{num_games}")
-        verbose = (game_idx == 0)
-
-        if game_idx % 2 == 0:
-            agent1, agent2 = alpha_agent, MCTSAgent(100)
-            player1, player2 = "AlphaZero Agent", "MCTS Agent"
-        else:
-            agent1, agent2 = MCTSAgent(100), alpha_agent
-            player1, player2 = "MCTS Agent", "AlphaZero Agent"
-
-        results, _ = agent_vs_agent(
-            agent1, agent2, player_1=player1, player_2=player2, metrics=total_metrics, verbose=verbose
-        )
-
-        if game_idx % 2 == 0:
-            if results[0] == PLAYER1_PRINT:
-                alpha_wins_started += 1
-            elif results[0] == PLAYER2_PRINT:
-                mcts_wins_not_started += 1
-        else:
-            if results[0] == PLAYER1_PRINT:
-                mcts_wins_started += 1
-            elif results[0] == PLAYER2_PRINT:
-                alpha_wins_not_started += 1
-
-        if results[0] == 'Draw':
+    total = []
+    for i in range(num_games):
+        print(f"Game {i + 1}/{num_games}")
+       
+        # Show board for first game, then just progress
+        verbose = (i == 0)
+        results = agent_vs_agent(generate_move_1=MCTSAgent(100), 
+                                generate_move_2=random_move, 
+                                player_1="MCTS Agent", 
+                                player_2="Random Agent",
+                                metrics=total_metrics,
+                                verbose=verbose)
+        total.append(results)
+        if results[0] == PLAYER1_PRINT:
+            mcts_wins_started += 1
+        elif results[0] == PLAYER2_PRINT:
+            random_wins_not_started += 1
+        elif results[0] == 'Draw':
             draws += 1
         elif results[0] == 'Error':
             errors += 1
 
+        if results[1] == PLAYER1_PRINT:
+            random_wins_started += 1
+        elif results[1] == PLAYER2_PRINT:
+            mcts_wins_not_started += 1
+        elif results[1] == 'Draw':
+            draws += 1
+        elif results[1] == 'Error':
+            errors += 1
+    
+    # Print detailed results
     print(f"\nResults after {num_games} games:")
-    print(f"AlphaZero wins when starting: {alpha_wins_started}")
-    print(f"AlphaZero wins when not starting: {alpha_wins_not_started}")
-    print(f"MCTS wins when starting: {mcts_wins_started}")
-    print(f"MCTS wins when not starting: {mcts_wins_not_started}")
+    print(f"MCTS Agent wins when starting: {mcts_wins_started}")
+    print(f"MCTS Agent wins when not starting: {mcts_wins_not_started}")
+    print(f"Random Agent wins when starting: {random_wins_started}")
+    print(f"Random Agent wins when not starting: {random_wins_not_started}")
     print(f"Draws: {draws}")
     print(f"Errors: {errors}")
+    
+    # Print comprehensive metrics
+    print("\nPerformance Metrics:")
+    print(total_metrics)
     return total_metrics
 
-
 def run_alphazero_vs_random(num_games: int, alpha_iterations=100):
+    """Run multiple games between AlphaZero and Random agents"""
     total_metrics = GameMetrics()
+    
+    # Initialize agent
     model = Connect4Net()
-    checkpoint = torch.load(f"checkpoints/deep/iteration_{itterarionNumber}.pt", map_location=device)
+    checkpoint = torch.load("checkpoints/iteration_1.pt", map_location="cpu")
     model.load_state_dict(checkpoint['model_state_dict'])
-    model.to(device)
     model.eval()
-
+    
     alpha_agent = AlphazeroMCTSAgent(
-        policy_value=lambda state: policy_value(state, model, device),
+        policy_value=lambda state: policy_value(state, model),
         iterationnumber=alpha_iterations
     )
-
+    
+    # Track results
     alpha_wins_started = 0
     alpha_wins_not_started = 0
     random_wins_started = 0
     random_wins_not_started = 0
     draws = 0
     errors = 0
-
+    
     for game_idx in range(num_games):
         print(f"\nGame {game_idx+1}/{num_games}")
+        
+        # Show board for first game only
         verbose = (game_idx == 0)
-
+        
+        # Alternate who starts
         if game_idx % 2 == 0:
-            agent1, agent2 = alpha_agent, random_move
-            player1, player2 = "AlphaZero Agent", "Random Agent"
+            # AlphaZero starts as Player 1
+            player1 = "AlphaZero Agent"
+            player2 = "Random Agent"
+            agent1 = alpha_agent
+            agent2 = random_move
         else:
-            agent1, agent2 = random_move, alpha_agent
-            player1, player2 = "Random Agent", "AlphaZero Agent"
-
+            # Random starts as Player 1
+            player1 = "Random Agent"
+            player2 = "AlphaZero Agent"
+            agent1 = random_move
+            agent2 = alpha_agent
+        
+        # Run the game
         results, _ = agent_vs_agent(
-            agent1, agent2, player_1=player1, player_2=player2, metrics=total_metrics, verbose=verbose
+            agent1,
+            agent2,
+            player_1=player1,
+            player_2=player2,
+            metrics=total_metrics,
+            verbose=verbose
         )
-
-        if game_idx % 2 == 0:
+        
+        # Track results based on who started
+        if game_idx % 2 == 0:  # AlphaZero started
             if results[0] == PLAYER1_PRINT:
                 alpha_wins_started += 1
             elif results[0] == PLAYER2_PRINT:
                 random_wins_not_started += 1
-        else:
+            elif results[0] == 'Draw':
+                draws += 1
+            elif results[0] == 'Error':
+                errors += 1
+        else:  # Random started
             if results[0] == PLAYER1_PRINT:
                 random_wins_started += 1
             elif results[0] == PLAYER2_PRINT:
                 alpha_wins_not_started += 1
-
-        if results[0] == 'Draw':
-            draws += 1
-        elif results[0] == 'Error':
-            errors += 1
-
+            elif results[0] == 'Draw':
+                draws += 1
+            elif results[0] == 'Error':
+                errors += 1
+    
+    # Print summary
     print(f"\nResults after {num_games} games:")
     print(f"AlphaZero wins when starting: {alpha_wins_started}")
     print(f"AlphaZero wins when not starting: {alpha_wins_not_started}")
+    print(f"Total AlphaZero wins: {alpha_wins_started + alpha_wins_not_started}")
     print(f"Random wins when starting: {random_wins_started}")
     print(f"Random wins when not starting: {random_wins_not_started}")
+    print(f"Total Random wins: {random_wins_started + random_wins_not_started}")
     print(f"Draws: {draws}")
     print(f"Errors: {errors}")
+    
     return total_metrics
 
+def run_alphazero_vs_mcts(num_games: int, alpha_iterations=100):
+    """
+    Run multiple games between an AlphaZero agent and a standard MCTS agent, alternating which agent starts first.
+    Tracks and prints the number of wins, draws, and errors for each agent depending on whether they started the game or not.
+    Args:
+        num_games (int): Number of games to play between the agents.
+        alpha_iterations (int, optional): Number of MCTS iterations for the AlphaZero agent. Defaults to 100.
+    Returns:
+        GameMetrics: An object containing aggregated metrics for all games played.
+    """
+    total_metrics = GameMetrics()
+    
+    # Initialize agent
+    model = Connect4Net()
+    checkpoint = torch.load("checkpoints/iteration_1.pt", map_location="cpu")
+    model.load_state_dict(checkpoint['model_state_dict'])
+    model.eval()
+    
+    alpha_agent = AlphazeroMCTSAgent(
+        policy_value=lambda state: policy_value(state, model),
+        iterationnumber=alpha_iterations
+    )
+    
+    # Track results
+    alpha_wins_started = 0
+    alpha_wins_not_started = 0
+    mcts_wins_started = 0
+    mcts_wins_not_started = 0
+    draws = 0
+    errors = 0
+    
+    for game_idx in range(num_games):
+        print(f"\nGame {game_idx+1}/{num_games}")
+        
+        # Show board for first game only
+        verbose = (game_idx == 0)
+        
+        # Alternate who starts
+        if game_idx % 2 == 0:
+            # AlphaZero starts as Player 1
+            player1 = "AlphaZero Agent"
+            player2 = "MCTS Agent"
+            agent1 = alpha_agent
+            agent2 = MCTSAgent(100)
+        else:
+            # Random starts as Player 1
+            player1 = "MCTS Agent"
+            player2 = "AlphaZero Agent"
+            agent1 = MCTSAgent(100)
+            agent2 = alpha_agent
+        
+        # Run the game
+        results, _ = agent_vs_agent(
+            agent1,
+            agent2,
+            player_1=player1,
+            player_2=player2,
+            metrics=total_metrics,
+            verbose=verbose
+        )
+        
+        # Track results based on who started
+        if game_idx % 2 == 0:  # AlphaZero started
+            if results[0] == PLAYER1_PRINT:
+                alpha_wins_started += 1
+            elif results[0] == PLAYER2_PRINT:
+                mcts_wins_not_started += 1
+            elif results[0] == 'Draw':
+                draws += 1
+            elif results[0] == 'Error':
+                errors += 1
+        else:  # MCTS started
+            if results[0] == PLAYER1_PRINT:
+                mcts_wins_started += 1
+            elif results[0] == PLAYER2_PRINT:
+                alpha_wins_not_started += 1
+            elif results[0] == 'Draw':
+                draws += 1
+            elif results[0] == 'Error':
+                errors += 1
+    
+    # Print summary
+    print(f"\nResults after {num_games} games:")
+    print(f"AlphaZero wins when starting: {alpha_wins_started}")
+    print(f"AlphaZero wins when not starting: {alpha_wins_not_started}")
+    print(f"Total AlphaZero wins: {alpha_wins_started + alpha_wins_not_started}")
+    print(f"MCTS wins when starting: {mcts_wins_started}")
+    print(f"MCTS wins when not starting: {mcts_wins_not_started}")
+    print(f"Total MCTS wins: {mcts_wins_started + mcts_wins_not_started}")
+    print(f"Draws: {draws}")
+    print(f"Errors: {errors}")
+    
+    return total_metrics
 
 if __name__ == "__main__":
     print("Connect Four Game")
@@ -255,24 +392,77 @@ if __name__ == "__main__":
     print("7: AlphaZero Agent vs Random Agent (baseline test)")
     print("8: AlphaZero Agent vs MCTS Agent (performance test)")
 
-    mode = "8"
+    mode = input("Enter number: ").strip()
     metrics = GameMetrics()
-    itterarionNumber = 0
 
-    for it in [1, 17, 18, 19]:
-        itterarionNumber = it
+    if mode == "1":
+        _, metrics = agent_vs_agent(
+            user_move,
+            random_move,
+            player_1="You",
+            player_2="Random Agent",
+            metrics=metrics
+        )
+    elif mode == "2":
+        _, metrics = agent_vs_agent(
+            user_move,
+            MCTSAgent(100),
+            player_1="You",
+            player_2="MCTS Agent",
+            args_2=(100,),
+            metrics=metrics
+        )
+    elif mode == "3":
+        num_games = int(input("How many game sets to play (both start ones)? "))
+        metrics = run_mcts_vs_random(num_games)
+    elif mode == "4":
+        _, metrics = agent_vs_agent(
+            user_move,
+            user_move,
+            player_1="Player 1",
+            player_2="Player 2",
+            metrics=metrics
+        )
+    elif mode == "5":
+        num_games = int(input("How many game sets to play (both start ones)? "))
+        for i in range(num_games):
+            print(f"Game {i + 1}/{num_games}")
+            verbose = (i == 0)  # Show board for first game only
+            agent_vs_agent(
+            MCTSAgent(100),  
+            HierarchicalMCTSAgent(iterationnumber=50),  
+            player_1="MCTS Agent",
+            player_2="Hierarchical MCTS Agent",
+            metrics=metrics
+            )
+    elif mode == "6":
+        agent_vs_agent(
+            HierarchicalMCTSAgent(25),  
+            random_move,  
+            player_1="Hierarchical MCTS Agent",
+            player_2="Random Agent",
+            metrics=metrics,
+            verbose=True
+        )
+    elif mode == "7":
+        num_games = int(input("How many game sets to play (both start ones)?"))
+        metrics = run_alphazero_vs_random(num_games)
+    elif mode == "8":
+        num_games = int(input("How many game sets to play (both start ones)? "))
+        metrics = run_alphazero_vs_mcts(num_games)
+    else:
+        print("Invalid selection.")
+        exit()
 
-        if mode == "7":
-            num_games = 20
-            metrics = run_alphazero_vs_random(num_games)
-        elif mode == "8":
-            num_games = 20
-            metrics = run_alphazero_vs_mcts(num_games)
+    # Always show metrics summary
+    print("\nFinal Performance Metrics:")
+    print(metrics)
 
-        print("\nFinal Performance Metrics:")
-        print(metrics)
-
-        metrics.plot_results(save_path=f"plots/{itterarionNumber}/{'MCTS' if mode == '8' else 'random'}/results.png")
+    # Ask user if they want to see visualizations
+    plot_choice = input("\nWould you like to see performance visualizations? (y/n): ").strip().lower()
+    if plot_choice == 'y':
+        metrics.plot_results()
         for agent in metrics.agents:
-            metrics.plot_move_duration_distribution(agent, save_path=f"plots/{itterarionNumber}/{'MCTS' if mode == '8' else 'random'}/move_duration_{agent}.png")
-        metrics.plot_performance_radar(save_path=f"plots/{itterarionNumber}/{'MCTS' if mode == '8' else 'random'}/radar.png")
+            metrics.plot_move_duration_distribution(agent)
+        metrics.plot_performance_radar()
+    
