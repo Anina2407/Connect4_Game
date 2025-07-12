@@ -362,7 +362,6 @@ if __name__ == "__main__":
         'resume_checkpoint': resume_checkpoint
     }
 
-    # Train
     trained_model = train_alphazero(**config, override_iteration=override_iteration)
 
     # Save final model
