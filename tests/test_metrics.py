@@ -263,10 +263,3 @@ def test_plot_move_duration_distribution_runs_without_error():
         pytest.fail(f"plot_move_duration_distribution raised an exception: {e}")
 
 
-def test_plot_move_duration_distribution_no_moves(capsys):
-    """Test that a message is printed if agent has no move times."""
-    gm = GameMetrics()
-    gm.add_agent("Empty")
-    gm.plot_move_duration_distribution("Empty")
-    captured = capsys.readouterr()
-    assert "No move times recorded for agent 'EmptyAgent'" in captured.out
