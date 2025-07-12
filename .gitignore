@@ -175,7 +175,7 @@ Thumbs.db        # Windows thumbnail cache
 # Ignore image files
 *.jpg
 *.jpeg
-*.png
+# *.png
 *.gif
 *.bmp
 *.tiff

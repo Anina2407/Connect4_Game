@@ -206,7 +206,7 @@ def run_alphazero_vs_random(num_games: int, alpha_iterations=100):
     
     # Initialize agent
     model = Connect4Net()
-    checkpoint = torch.load("checkpoints/iteration_40.pt", map_location="cpu")
+    checkpoint = torch.load(f"checkpoints/deep/iteration_{itterarionNumber}.pt", map_location="cpu")
     model.load_state_dict(checkpoint['model_state_dict'])
     model.eval()
     
@@ -300,7 +300,7 @@ def run_alphazero_vs_mcts(num_games: int, alpha_iterations=100):
     
     # Initialize agent
     model = Connect4Net()
-    checkpoint = torch.load("checkpoints/iteration_20.pt", map_location="cpu")
+    checkpoint = torch.load(f"checkpoints/deep/iteration_{itterarionNumber}.pt", map_location="cpu")
     model.load_state_dict(checkpoint['model_state_dict'])
     model.eval()
     
@@ -392,77 +392,80 @@ if __name__ == "__main__":
     print("7: AlphaZero Agent vs Random Agent (baseline test)")
     print("8: AlphaZero Agent vs MCTS Agent (performance test)")
 
-    mode = input("Enter number: ").strip()
+    # mode = input("Enter number: ").strip()
+    mode = "8"
     metrics = GameMetrics()
+    itterarionNumber = 0
+    for it in [17,18,23,27,28]:
+        itterarionNumber = it
 
-    if mode == "1":
-        _, metrics = agent_vs_agent(
-            user_move,
-            random_move,
-            player_1="You",
-            player_2="Random Agent",
-            metrics=metrics
-        )
-    elif mode == "2":
-        _, metrics = agent_vs_agent(
-            user_move,
-            MCTSAgent(100),
-            player_1="You",
-            player_2="MCTS Agent",
-            args_2=(100,),
-            metrics=metrics
-        )
-    elif mode == "3":
-        num_games = int(input("How many games? "))
-        metrics = run_mcts_vs_random(num_games)
-    elif mode == "4":
-        _, metrics = agent_vs_agent(
-            user_move,
-            user_move,
-            player_1="Player 1",
-            player_2="Player 2",
-            metrics=metrics
-        )
-    elif mode == "5":
-        num_games = int(input("How many games? "))
-        for i in range(num_games):
-            print(f"Game {i + 1}/{num_games}")
-            verbose = (i == 0)  # Show board for first game only
-            agent_vs_agent(
-            MCTSAgent(100),  
-            HierarchicalMCTSAgent(iterationnumber=50),  
-            player_1="MCTS Agent",
-            player_2="Hierarchical MCTS Agent",
-            metrics=metrics
+        if mode == "1":
+            _, metrics = agent_vs_agent(
+                user_move,
+                random_move,
+                player_1="You",
+                player_2="Random Agent",
+                metrics=metrics
             )
-    elif mode == "6":
-        agent_vs_agent(
-            HierarchicalMCTSAgent(25),  
-            random_move,  
-            player_1="Hierarchical MCTS Agent",
-            player_2="Random Agent",
-            metrics=metrics,
-            verbose=True
-        )
-    elif mode == "7":
-        num_games = int(input("How many games to play? "))
-        metrics = run_alphazero_vs_random(num_games)
-    elif mode == "8":
-        num_games = int(input("How many games to play? "))
-        metrics = run_alphazero_vs_mcts(num_games)
-    else:
-        print("Invalid selection.")
-        exit()
+        elif mode == "2":
+            _, metrics = agent_vs_agent(
+                user_move,
+                MCTSAgent(100),
+                player_1="You",
+                player_2="MCTS Agent",
+                args_2=(100,),
+                metrics=metrics
+            )
+        elif mode == "3":
+            num_games = int(input("How many games? "))
+            metrics = run_mcts_vs_random(num_games)
+        elif mode == "4":
+            _, metrics = agent_vs_agent(
+                user_move,
+                user_move,
+                player_1="Player 1",
+                player_2="Player 2",
+                metrics=metrics
+            )
+        elif mode == "5":
+            num_games = int(input("How many games? "))
+            for i in range(num_games):
+                print(f"Game {i + 1}/{num_games}")
+                verbose = (i == 0)  # Show board for first game only
+                agent_vs_agent(
+                MCTSAgent(100),  
+                HierarchicalMCTSAgent(iterationnumber=50),  
+                player_1="MCTS Agent",
+                player_2="Hierarchical MCTS Agent",
+                metrics=metrics
+                )
+        elif mode == "6":
+            agent_vs_agent(
+                HierarchicalMCTSAgent(25),  
+                random_move,  
+                player_1="Hierarchical MCTS Agent",
+                player_2="Random Agent",
+                metrics=metrics,
+                verbose=True
+            )
+        elif mode == "7":
+            # num_games = int(input("How many games to play? "))
+            num_games = 10
+            metrics = run_alphazero_vs_random(num_games)
+        elif mode == "8":
+            # num_games = int(input("How many games to play? "))
+            num_games = 10
+            metrics = run_alphazero_vs_mcts(num_games)
+        else:
+            print("Invalid selection.")
+            exit()
 
-    # Always show metrics summary
-    print("\nFinal Performance Metrics:")
-    print(metrics)
+        # Always show metrics summary
+        print("\nFinal Performance Metrics:")
+        print(metrics)
 
-    # Ask user if they want to see visualizations
-    plot_choice = input("\nWould you like to see performance visualizations? (y/n): ").strip().lower()
-    if plot_choice == 'y':
-        metrics.plot_results()
-        for agent in metrics.agents:
-            metrics.plot_move_duration_distribution(agent)
-        metrics.plot_performance_radar()
     
+        metrics.plot_results(save_path=f"plots/{itterarionNumber}/{"MCTS" if mode == "8" else "random"}/results.png")
+        for agent in metrics.agents:
+            metrics.plot_move_duration_distribution(agent, save_path=f"plots/{itterarionNumber}/{"MCTS" if mode == "8" else "random"}/move_duration_{agent}.png")
+        metrics.plot_performance_radar(save_path=f"plots/{itterarionNumber}/{"MCTS" if mode == "8" else "random"}/radar.png")
