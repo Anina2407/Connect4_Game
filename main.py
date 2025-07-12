@@ -1,3 +1,18 @@
+"""
+main.py - Connect Four Agent Evaluation and Game Runner
+
+This script serves as the entry point for evaluating and testing various Connect Four agents,
+including human, random, MCTS, hierarchical MCTS, and AlphaZero-based agents.
+It provides CLI or hardcoded options for running different matchups between agents
+and collects performance metrics such as win rates, move durations, and legality statistics.
+
+Features:
+- Support for Human vs AI, AI vs AI games
+- Evaluation of AlphaZero agent checkpoints
+- Automatic GPU/MPS/CPU device selection
+- Plots and saves performance metrics for analysis
+"""
+
 import os
 import time
 import torch
@@ -44,6 +59,24 @@ def agent_vs_agent(
     metrics: GameMetrics = None,
     verbose: bool = True
 ) -> tuple:
+    """
+    Run a game between two agents (or humans) with optional metric tracking.
+
+    Args:
+        generate_move_1 (GenMove): Move function for player 1.
+        generate_move_2 (GenMove): Move function for player 2.
+        player_1 (str): Name of player 1.
+        player_2 (str): Name of player 2.
+        args_1 (tuple): Args for player 1.
+        args_2 (tuple): Args for player 2.
+        init_1 (Callable): Optional init for player 1.
+        init_2 (Callable): Optional init for player 2.
+        metrics (GameMetrics): Metrics object to record data.
+        verbose (bool): If True, print detailed game info.
+
+    Returns:
+        tuple: (results list, metrics object)
+    """
     if metrics is None:
         metrics = GameMetrics()
 
@@ -122,6 +155,16 @@ def agent_vs_agent(
 
 
 def run_alphazero_vs_mcts(num_games: int, alpha_iterations=100):
+    """
+    Evaluate AlphaZero agent against MCTS baseline.
+
+    Args:
+        num_games (int): Number of games to play.
+        alpha_iterations (int): MCTS sims for AlphaZero agent.
+
+    Returns:
+        GameMetrics: Collected metrics from all games.
+    """
     total_metrics = GameMetrics()
     model = Connect4Net()
     checkpoint = torch.load(f"checkpoints/iteration_{itterarionNumber}.pt", map_location=device)
@@ -183,6 +226,16 @@ def run_alphazero_vs_mcts(num_games: int, alpha_iterations=100):
 
 
 def run_alphazero_vs_random(num_games: int, alpha_iterations=100):
+    """
+    Evaluate AlphaZero agent against a Random agent.
+
+    Args:
+        num_games (int): Number of games to play.
+        alpha_iterations (int): MCTS sims for AlphaZero agent.
+
+    Returns:
+        GameMetrics: Collected metrics from all games.
+    """
     total_metrics = GameMetrics()
     model = Connect4Net()
     checkpoint = torch.load(f"checkpoints/deep/iteration_{itterarionNumber}.pt", map_location=device)
