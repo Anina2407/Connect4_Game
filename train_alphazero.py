@@ -181,13 +181,13 @@ def self_play(model, device, mcts_iterations=500, temperature=1.0):
 
 
 def train_alphazero(
-    num_iterations=10,
+    num_iterations=1000,
     num_self_play_games=300,
-    num_epochs=10,
-    batch_size=128,
+    num_epochs=30,
+    batch_size=256,
     mcts_iterations=100,
     learning_rate=0.001,
-    buffer_size=10000,
+    buffer_size=30000,
     device='cpu',
     checkpoint_dir="checkpoints",
     resume_checkpoint=None
@@ -214,7 +214,7 @@ def train_alphazero(
 
     model = Connect4Net().to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    scheduler = StepLR(optimizer, step_size=10, gamma=0.5)
+    scheduler = StepLR(optimizer, step_size=5, gamma=0.5)
     loss_fn = CustomLoss()    
     replay_buffer = ReplayBuffer(capacity=buffer_size)
     start_iteration = 0
@@ -226,6 +226,8 @@ def train_alphazero(
             checkpoint = torch.load(checkpoint_path, map_location=device)
             model.load_state_dict(checkpoint['model_state_dict'])
             optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            if 'scheduler_state_dict' in checkpoint:
+                scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
             start_iteration = checkpoint['iteration'] + 1
 
             buffer_path = os.path.join(
@@ -286,6 +288,7 @@ def train_alphazero(
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
             'iteration': iteration,
+            'scheduler_state_dict': scheduler.state_dict(),
         }, checkpoint_path)
 
         replay_buffer.save(buffer_path)
@@ -301,20 +304,27 @@ if __name__ == "__main__":
     """
     Entry point for training the AlphaZero model. Parses CLI arguments and starts training.
     """
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+        print("Using CUDA GPU")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+        print("Using Apple MPS backend")
+    else:
+        device = torch.device("cpu")
+        print("No GPU found, using CPU")
 
     config = {
-        'num_iterations': 20,
-        'num_self_play_games': 500,
+        'num_iterations': 1000,
+        'num_self_play_games': 300,
         'num_epochs': 15,
-        'batch_size': 128,
+        'batch_size': 128,  
         'mcts_iterations': 100,
         'learning_rate': 0.001,
-        'buffer_size': 20000,
+        'buffer_size': 30000,
         'device': device,
         'checkpoint_dir': "checkpoints",
-        'resume_checkpoint': "iteration_20.pt"
+        'resume_checkpoint': "iteration_19.pt"
     }
 
     import argparse
