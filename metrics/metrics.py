@@ -135,7 +135,7 @@ class GameMetrics:
         total_moves = agent['legal_moves'] + agent.get('illegal_moves', 0)
         return agent['legal_moves'] / total_moves if total_moves else 0.0
 
-    def plot_move_duration_distribution(self, agent_name: str):
+    def plot_move_duration_distribution(self, agent_name: str, save_path= None):
         """
         Plots histogram of move durations for a given agent.
 
@@ -160,9 +160,16 @@ class GameMetrics:
         plt.ylabel('Frequency')
         plt.grid(True)
         plt.tight_layout()
-        plt.show()
+        
+        if save_path:
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            plt.savefig(save_path)
+            print(f"Metrics plot saved to {save_path}")
 
-    def plot_performance_radar(self):
+        else:
+            plt.show()
+
+    def plot_performance_radar(self, save_path= None):
         """
         Plots a radar chart comparing agent performance on:
         - Win Rate
@@ -205,8 +212,14 @@ class GameMetrics:
         ax.set_yticklabels([])
         ax.legend(loc='upper right', bbox_to_anchor=(1.3, 1.1))
         plt.tight_layout()
-        plt.show()
+        if save_path:
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            plt.savefig(save_path)
+            print(f"Metrics plot saved to {save_path}")
 
+        else:
+            plt.show()
+        
     
 
 
@@ -317,7 +330,7 @@ class GameMetrics:
             plt.savefig(save_path)
             print(f"Metrics plot saved to {save_path}")
 
-        if show:
+        else:
             plt.show()
 
     def __str__(self):
