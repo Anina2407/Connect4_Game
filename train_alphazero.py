@@ -190,7 +190,8 @@ def train_alphazero(
     buffer_size=30000,
     device='cpu',
     checkpoint_dir="checkpoints",
-    resume_checkpoint=None
+    resume_checkpoint=None,
+    override_iteration=None,
 ):
     """
     Main training loop for AlphaZero including checkpointing and self-play.
@@ -217,7 +218,8 @@ def train_alphazero(
     scheduler = StepLR(optimizer, step_size=5, gamma=0.5)
     loss_fn = CustomLoss()    
     replay_buffer = ReplayBuffer(capacity=buffer_size)
-    start_iteration = 0
+
+    start_iteration = override_iteration if override_iteration is not None else 0
 
     if resume_checkpoint:
         print(f"Resuming training from checkpoint: {resume_checkpoint}")
@@ -228,7 +230,6 @@ def train_alphazero(
             optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
             if 'scheduler_state_dict' in checkpoint:
                 scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-            start_iteration = checkpoint['iteration'] + 1
 
             buffer_path = os.path.join(
                 checkpoint_dir, f"buffer_{resume_checkpoint.split('_')[-1]}"
@@ -302,8 +303,27 @@ def train_alphazero(
 
 if __name__ == "__main__":
     """
-    Entry point for training the AlphaZero model. Parses CLI arguments and starts training.
+    Entry point for training the AlphaZero model.
+    
+    This script supports **manual configuration** of training behavior. You can set which
+    iteration to resume from and whether to repeat that iteration or continue to the next one.
+
+    Usage (via code, not CLI):
+    ---------------------------
+    - Set `resume_checkpoint` to the name of the checkpoint file (e.g., "iteration_20.pt").
+    - Set `repeat` to:
+        - True  → Repeats the specified iteration (e.g., re-run iteration 20 without advancing the LR scheduler).
+        - False → Moves on to the next iteration (e.g., from 20 to 21 and advances scheduler).
+    - To start training from scratch:
+        - Set `resume_checkpoint = None`
+
+    Example:
+    --------
+    resume_checkpoint = "iteration_20.pt"
+    repeat = True   # Repeats iteration 20 with same learning rate
     """
+    
+    # Device detection
     if torch.cuda.is_available():
         device = torch.device("cuda")
         print("Using CUDA GPU")
@@ -314,30 +334,38 @@ if __name__ == "__main__":
         device = torch.device("cpu")
         print("No GPU found, using CPU")
 
+    # === Manual Training Config ===
+    resume_checkpoint = "iteration_19.pt"  # Set to None if training from scratch
+    repeat = True  # True = repeat same iteration, False = move to next
+
+    # Determine iteration number to run
+    override_iteration = None
+    if resume_checkpoint:
+        try:
+            iter_num = int(resume_checkpoint.replace("iteration_", "").replace(".pt", ""))
+            override_iteration = iter_num if repeat else iter_num + 1
+        except ValueError:
+            print("Error: Could not parse iteration number from checkpoint name.")
+            exit(1)
+
+    # Training config
     config = {
-        'num_iterations': 1000,
+        'num_iterations': 100,
         'num_self_play_games': 300,
         'num_epochs': 15,
-        'batch_size': 128,  
+        'batch_size': 128,
         'mcts_iterations': 100,
         'learning_rate': 0.001,
         'buffer_size': 30000,
         'device': device,
         'checkpoint_dir': "checkpoints",
-        'resume_checkpoint': "iteration_19.pt"
+        'resume_checkpoint': resume_checkpoint
     }
 
-    import argparse
-    parser = argparse.ArgumentParser(description='AlphaZero Training')
-    parser.add_argument('--resume', type=str, default=None,
-                        help='Checkpoint to resume training from (e.g., iteration_10.pt)')
-    args = parser.parse_args()
+    # Train
+    trained_model = train_alphazero(**config, override_iteration=override_iteration)
 
-    if args.resume:
-        config['resume_checkpoint'] = args.resume
-
-    trained_model = train_alphazero(**config)
-
+    # Save final model
     final_model_path = "alphazero_final_model.pt"
     torch.save(trained_model.state_dict(), final_model_path)
     print(f"Training complete! Saved final model as {final_model_path}")
