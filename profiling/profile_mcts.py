@@ -6,7 +6,7 @@ from agents.agent_MCTS.mcts import MCTSAgent
 from game_utils import initialize_game_state, PLAYER1
 
 # Redirect memory profiling output to a file
-memory_log = open('memory_profile_mcts.log', 'w')
+memory_log = open('memory_profile_mcts.log', 'w', buffering=1)
 sys.stdout = memory_log  # Redirect sys.stdout directly to the file
 
 @profile
