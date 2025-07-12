@@ -1,3 +1,21 @@
+"""
+main.py - Connect Four Agent Evaluation and Game Runner
+
+This script serves as the entry point for evaluating and testing various Connect Four agents,
+including human, random, MCTS, hierarchical MCTS, and AlphaZero-based agents.
+It provides CLI or hardcoded options for running different matchups between agents
+and collects performance metrics such as win rates, move durations, and legality statistics.
+
+Features:
+- Support for Human vs AI, AI vs AI games
+- Evaluation of AlphaZero agent checkpoints
+- Automatic GPU/MPS/CPU device selection
+- Plots and saves performance metrics for analysis
+"""
+
+import os
+import time
+import torch
 from typing import Callable
 import time
 from game_utils import PLAYER1, PLAYER2, PLAYER1_PRINT, PLAYER2_PRINT, GameState, MoveStatus, GenMove
@@ -26,24 +44,22 @@ def agent_vs_agent(
     verbose: bool = True  # Added verbose parameter to control output
 ) -> tuple:
     """
-    Run a game between two agents (human or AI) with integrated metrics tracking.
-    This function simulates two games of Connect4 between two agents, alternating which agent goes first. 
-    It supports custom move generators, initialization routines, and tracks game metrics such as move times, legality, and results.
+    Run a game between two agents (or humans) with optional metric tracking.
+
     Args:
-        generate_move_1 (GenMove): Move generator function for the first agent.
-        generate_move_2 (GenMove, optional): Move generator function for the second agent. Defaults to user_move.
-        player_1 (str, optional): Name of the first player. Defaults to "Player 1".
-        player_2 (str, optional): Name of the second player. Defaults to "Player 2".
-        args_1 (tuple, optional): Additional arguments for the first agent's move generator. Defaults to ().
-        args_2 (tuple, optional): Additional arguments for the second agent's move generator. Defaults to ().
-        init_1 (Callable, optional): Initialization function for the first agent. Defaults to a no-op.
-        init_2 (Callable, optional): Initialization function for the second agent. Defaults to a no-op.
-        metrics (GameMetrics, optional): Metrics object for tracking game statistics. If None, a new GameMetrics is created.
-        verbose (bool, optional): If True, prints board states and move information. Defaults to True.
+        generate_move_1 (GenMove): Move function for player 1.
+        generate_move_2 (GenMove): Move function for player 2.
+        player_1 (str): Name of player 1.
+        player_2 (str): Name of player 2.
+        args_1 (tuple): Args for player 1.
+        args_2 (tuple): Args for player 2.
+        init_1 (Callable): Optional init for player 1.
+        init_2 (Callable): Optional init for player 2.
+        metrics (GameMetrics): Metrics object to record data.
+        verbose (bool): If True, print detailed game info.
+
     Returns:
-        tuple: A tuple containing:
-            - results (list): List of results for each game ('Draw', PLAYER1_PRINT, PLAYER2_PRINT, or 'Error').
-            - metrics (GameMetrics): The metrics object with recorded statistics.
+        tuple: (results list, metrics object)
     """
     if metrics is None:
         metrics = GameMetrics()
