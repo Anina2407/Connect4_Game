@@ -49,6 +49,7 @@ class ReplayBuffer:
         return [self.buffer[i] for i in indices]
 
     def __len__(self):
+        """Return the current size of the buffer."""
         return len(self.buffer)
 
     def save(self, path):
@@ -86,6 +87,11 @@ class BoardDataset(Dataset):
         data (list): List of (state, policy, value) tuples.
     """
     def __init__(self, data):
+        """Requires a list of tuples (state, policy, value) for initialization.
+        Args:
+            data (list): List of tuples containing (state, policy, value).
+
+        """
         self.states = []
         self.policies = []
         self.values = []
@@ -96,6 +102,7 @@ class BoardDataset(Dataset):
             self.values.append(value)
 
     def __len__(self):
+        "Return the number of samples in the dataset."
         return len(self.states)
 
     def __getitem__(self, idx):
