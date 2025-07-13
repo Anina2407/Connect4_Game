@@ -5,8 +5,6 @@ The focus is on applying principles of **software design**, **modular architectu
 
 > 💡 See our planning board: [Miro Link](https://miro.com/app/board/uXjVIsyA0Qk=/)
 
-
-
 ## Agents
 
 - **MCTS Agent:** Classic Monte Carlo Tree Search agent.
@@ -98,18 +96,18 @@ Game/
 └── train_alphazero.py
 ```
 ## Training Data & Pretrained Data
-Pre-trained AlphaZero models (with residual layers) are available here:
-[ Google Drive Link](https://drive.google.com/drive/folders/1S6eljs_s0Wlq_DL237q-xXZV4ZdG_5Ou)
-Default used: Iteration 17
-To switch, update the checkpoint folder and the path in main.py
+Pre-trained AlphaZero models (with residual layers) are available here: <br>
+[ Google Drive Link](https://drive.google.com/drive/folders/1S6eljs_s0Wlq_DL237q-xXZV4ZdG_5Ou) <br>
+Default used: Iteration 17 <br>
+To switch, update the checkpoint folder and the path in main.py <br>
 To train more data with residual Layer: 
 ```bash
 python train_alphazero.py
 ```
 
-Pre-trained AlphaZero models (with only convolutional Layer) are available here:
-[ Google Drive Link]()
-To switch, update the checkpoint folder and the path in main.py
+Pre-trained AlphaZero models (with only convolutional Layer) are available here: <br>
+[ Google Drive Link]() <br>
+To switch, update the checkpoint folder and the path in main.py <br>
 
 To train more data with convolutional Layer, replace imports in all files (search for 'CNN' to quickly locate the relevant sections): 
 ```bash
