@@ -294,8 +294,18 @@ if __name__ == "__main__":
     """
     Entry point for training the AlphaZero model. Parses CLI arguments and starts training.
     """
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
+    
+     # Device detection
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+        print("Using CUDA GPU")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+        print("Using Apple MPS backend")
+    else:
+        device = torch.device("cpu")
+        print("No GPU found, using CPU")
+
 
     config = {
         'num_iterations': 100,
