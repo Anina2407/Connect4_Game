@@ -353,7 +353,7 @@ if __name__ == "__main__":
     repeat = True   # Repeats iteration 20 with same learning rate
     """
 
-    # Device detection
+
     if torch.cuda.is_available():
         device = torch.device("cuda")
         print("Using CUDA GPU")
@@ -364,11 +364,10 @@ if __name__ == "__main__":
         device = torch.device("cpu")
         print("No GPU found, using CPU")
 
-    # === Manual Training Config ===
-    resume_checkpoint = "iteration_19.pt"  # Set to None if training from scratch
-    repeat = True  # True = repeat same iteration, False = move to next
 
-    # Determine iteration number to run
+    resume_checkpoint = "iteration_19.pt"  
+    repeat = True  
+
     override_iteration = None
     if resume_checkpoint:
         try:
@@ -380,7 +379,7 @@ if __name__ == "__main__":
             print("Error: Could not parse iteration number from checkpoint name.")
             exit(1)
 
-    # Training config
+
     config = {
         "num_iterations": 100,
         "num_self_play_games": 300,
@@ -396,7 +395,7 @@ if __name__ == "__main__":
 
     trained_model = train_alphazero(**config, override_iteration=override_iteration)
 
-    # Save final model
+
     final_model_path = "alphazero_final_model.pt"
     torch.save(trained_model.state_dict(), final_model_path)
     print(f"Training complete! Saved final model as {final_model_path}")
