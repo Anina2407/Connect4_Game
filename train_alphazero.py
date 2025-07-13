@@ -295,7 +295,7 @@ if __name__ == "__main__":
     Entry point for training the AlphaZero model. Parses CLI arguments and starts training.
     """
     
-     # Device detection
+
     if torch.cuda.is_available():
         device = torch.device("cuda")
         print("Using CUDA GPU")
