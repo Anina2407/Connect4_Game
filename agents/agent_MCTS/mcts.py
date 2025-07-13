@@ -64,6 +64,7 @@ class MCTSAgent:
         saved_state: SavedState | None,
         player_name: str | None = None,
         metrics: GameMetrics | None = None,
+        extra = None,
     ) -> tuple[PlayerAction, SavedState | None]:
         """
         Perform next move of agent using the Monte Carlo Tree Search (MCTS) algorithm.
