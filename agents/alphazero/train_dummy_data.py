@@ -1,8 +1,8 @@
 import torch
 from torch.utils.data import DataLoader
 import numpy as np
-from network import Connect4Net, BoardDataset, CustomLoss
-
+#from agents.alphazero.network_CNN import Connect4Net, BoardDataset, CustomLoss # Uncomment if using AlphaZero with CNN and comment out the next line
+from agents.alphazero.network import Connect4Net, BoardDataset, CustomLoss
 
 # Generate dummy data (replace with self-play later)
 def generate_dummy_data(n=100):

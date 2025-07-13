@@ -6,33 +6,23 @@ import os
 import time
 from collections import deque
 from game_utils import (
-    initialize_game_state,
-    BoardPiece,
-    PLAYER1,
-    PLAYER2,
-    apply_player_action,
-    check_end_state,
-    GameState,
-    get_opponent,
-    PlayerAction,
+    initialize_game_state, BoardPiece, PLAYER1, PLAYER2,
+    apply_player_action, check_end_state, GameState,
+    get_opponent, PlayerAction
 )
 from agents.alphazero.network import Connect4Net, CustomLoss
 from agents.alphazero.inference import policy_value
 from agents.agent_MCTS.alphazero_mcts import AlphazeroMCTSAgent
-from torch.optim.lr_scheduler import StepLR
 
 
 class ReplayBuffer:
     """
     A buffer to store gameplay experiences for training the AlphaZero model.
-    """
 
+    Args:
+        capacity (int): Maximum number of experiences to store.
+    """
     def __init__(self, capacity=10000):
-        """
-        Initialize the replay buffer with a specified capacity.
-        Args:
-            capacity (int): Maximum number of experiences to store.
-        """
         self.buffer = deque(maxlen=capacity)
 
     def add(self, experience):
@@ -44,7 +34,7 @@ class ReplayBuffer:
         """
         self.buffer.append(experience)
 
-    def sample(self, batch_size) -> list:
+    def sample(self, batch_size):
         """
         Sample a batch of experiences.
 
@@ -57,8 +47,7 @@ class ReplayBuffer:
         indices = np.random.choice(len(self.buffer), batch_size, replace=False)
         return [self.buffer[i] for i in indices]
 
-    def __len__(self) -> int:
-        """Return the current size of the buffer."""
+    def __len__(self):
         return len(self.buffer)
 
     def save(self, path):
@@ -95,13 +84,7 @@ class BoardDataset(Dataset):
     Args:
         data (list): List of (state, policy, value) tuples.
     """
-
     def __init__(self, data):
-        """Requires a list of tuples (state, policy, value) for initialization.
-        Args:
-            data (list): List of tuples containing (state, policy, value).
-
-        """
         self.states = []
         self.policies = []
         self.values = []
@@ -111,11 +94,10 @@ class BoardDataset(Dataset):
             self.policies.append(policy)
             self.values.append(value)
 
-    def __len__(self) -> int:
-        "Return the number of samples in the dataset."
+    def __len__(self):
         return len(self.states)
 
-    def __getitem__(self, idx) -> tuple:
+    def __getitem__(self, idx):
         """
         Retrieve a single training sample.
 
@@ -131,7 +113,7 @@ class BoardDataset(Dataset):
         return state, policy, value
 
 
-def self_play(model, device, mcts_iterations=500, temperature=1.0) -> list:
+def self_play(model, device, mcts_iterations=100, temperature=1.0):
     """
     Play a single self-play game using MCTS to generate training data.
 
@@ -147,7 +129,7 @@ def self_play(model, device, mcts_iterations=500, temperature=1.0) -> list:
     board = initialize_game_state()
     agent = AlphazeroMCTSAgent(
         lambda state: policy_value(state, model, device),
-        iterationnumber=mcts_iterations,
+        iterationnumber=mcts_iterations
     )
     saved_state = None
     current_player = PLAYER1
@@ -167,13 +149,11 @@ def self_play(model, device, mcts_iterations=500, temperature=1.0) -> list:
             policy = np.power(policy, 1 / temperature)
             policy /= np.sum(policy)
 
-        state_rep = np.stack(
-            [
-                (board == current_player).astype(np.float32),
-                (board == get_opponent(current_player)).astype(np.float32),
-                np.ones_like(board, dtype=np.float32),
-            ]
-        )
+        state_rep = np.stack([
+            (board == current_player).astype(np.float32),
+            (board == get_opponent(current_player)).astype(np.float32),
+            np.ones_like(board, dtype=np.float32)
+        ])
 
         game_history.append((state_rep, policy, current_player))
 
@@ -200,17 +180,16 @@ def self_play(model, device, mcts_iterations=500, temperature=1.0) -> list:
 
 
 def train_alphazero(
-    num_iterations=1000,
-    num_self_play_games=300,
-    num_epochs=30,
-    batch_size=256,
+    num_iterations=100,
+    num_self_play_games=100,
+    num_epochs=10,
+    batch_size=128,
     mcts_iterations=100,
     learning_rate=0.001,
-    buffer_size=30000,
-    device="cpu",
+    buffer_size=10000,
+    device='cpu',
     checkpoint_dir="checkpoints",
-    resume_checkpoint=None,
-    override_iteration=None,
+    resume_checkpoint=None
 ):
     """
     Main training loop for AlphaZero including checkpointing and self-play.
@@ -226,7 +205,6 @@ def train_alphazero(
         device (str): Computation device ('cpu' or 'cuda').
         checkpoint_dir (str): Path to save checkpoints.
         resume_checkpoint (str or None): Resume from this checkpoint if provided.
-        override_iteration (int or None): If provided, overrides the starting iteration.
 
     Returns:
         model (torch.nn.Module): Trained model.
@@ -235,21 +213,18 @@ def train_alphazero(
 
     model = Connect4Net().to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    scheduler = StepLR(optimizer, step_size=5, gamma=0.5)
     loss_fn = CustomLoss()
     replay_buffer = ReplayBuffer(capacity=buffer_size)
-
-    start_iteration = override_iteration if override_iteration is not None else 0
+    start_iteration = 0
 
     if resume_checkpoint:
         print(f"Resuming training from checkpoint: {resume_checkpoint}")
         checkpoint_path = os.path.join(checkpoint_dir, resume_checkpoint)
         if os.path.exists(checkpoint_path):
             checkpoint = torch.load(checkpoint_path, map_location=device)
-            model.load_state_dict(checkpoint["model_state_dict"])
-            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-            if "scheduler_state_dict" in checkpoint:
-                scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+            model.load_state_dict(checkpoint['model_state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            start_iteration = checkpoint['iteration'] + 1
 
             buffer_path = os.path.join(
                 checkpoint_dir, f"buffer_{resume_checkpoint.split('_')[-1]}"
@@ -258,9 +233,7 @@ def train_alphazero(
                 replay_buffer = ReplayBuffer.load(buffer_path, capacity=buffer_size)
                 print(f"Loaded replay buffer with {len(replay_buffer)} experiences")
         else:
-            print(
-                f"Warning: Checkpoint {checkpoint_path} not found. Starting from scratch."
-            )
+            print(f"Warning: Checkpoint {checkpoint_path} not found. Starting from scratch.")
 
     for iteration in range(start_iteration, num_iterations):
         print(f"\n=== Iteration {iteration+1}/{num_iterations} ===")
@@ -279,9 +252,7 @@ def train_alphazero(
             sample_size = min(len(replay_buffer), 2048)
             train_data = replay_buffer.sample(sample_size)
             train_dataset = BoardDataset(train_data)
-            train_loader = DataLoader(
-                train_dataset, batch_size=batch_size, shuffle=True
-            )
+            train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
             model.train()
             for epoch in range(num_epochs):
@@ -299,27 +270,16 @@ def train_alphazero(
                     optimizer.step()
 
                     epoch_loss += loss.item()
-                print(
-                    f"  Epoch {epoch+1}/{num_epochs} - Loss: {epoch_loss / len(train_loader):.4f}"
-                )
-
-        # Decay learning rate
-        scheduler.step()
-        current_lr = scheduler.get_last_lr()[0]
-        print(f"Current learning rate: {current_lr:.6f}")
+                print(f"  Epoch {epoch+1}/{num_epochs} - Loss: {epoch_loss / len(train_loader):.4f}")
 
         checkpoint_path = os.path.join(checkpoint_dir, f"iteration_{iteration+1}.pt")
         buffer_path = os.path.join(checkpoint_dir, f"buffer_{iteration+1}.pt")
 
-        torch.save(
-            {
-                "model_state_dict": model.state_dict(),
-                "optimizer_state_dict": optimizer.state_dict(),
-                "iteration": iteration,
-                "scheduler_state_dict": scheduler.state_dict(),
-            },
-            checkpoint_path,
-        )
+        torch.save({
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'iteration': iteration,
+        }, checkpoint_path)
 
         replay_buffer.save(buffer_path)
 
@@ -332,70 +292,35 @@ def train_alphazero(
 
 if __name__ == "__main__":
     """
-    Entry point for training the AlphaZero model.
-
-    This script supports **manual configuration** of training behavior. You can set which
-    iteration to resume from and whether to repeat that iteration or continue to the next one.
-
-    Usage (via code, not CLI):
-    ---------------------------
-    - Set `resume_checkpoint` to the name of the checkpoint file (e.g., "iteration_20.pt").
-    - Set `repeat` to:
-        - True  → Repeats the specified iteration (e.g., re-run iteration 20 without advancing the LR scheduler).
-        - False → Moves on to the next iteration (e.g., from 20 to 21 and advances scheduler).
-    - To start training from scratch:
-        - Set `resume_checkpoint = None`
-
-    Example:
-    --------
-    resume_checkpoint = "iteration_20.pt"
-    repeat = True   # Repeats iteration 20 with same learning rate
+    Entry point for training the AlphaZero model. Parses CLI arguments and starts training.
     """
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
 
-    # Device detection
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
-        print("Using CUDA GPU")
-    elif torch.backends.mps.is_available():
-        device = torch.device("mps")
-        print("Using Apple MPS backend")
-    else:
-        device = torch.device("cpu")
-        print("No GPU found, using CPU")
-
-    # === Manual Training Config ===
-    resume_checkpoint = "iteration_19.pt"  # Set to None if training from scratch
-    repeat = True  # True = repeat same iteration, False = move to next
-
-    # Determine iteration number to run
-    override_iteration = None
-    if resume_checkpoint:
-        try:
-            iter_num = int(
-                resume_checkpoint.replace("iteration_", "").replace(".pt", "")
-            )
-            override_iteration = iter_num if repeat else iter_num + 1
-        except ValueError:
-            print("Error: Could not parse iteration number from checkpoint name.")
-            exit(1)
-
-    # Training config
     config = {
-        "num_iterations": 100,
-        "num_self_play_games": 300,
-        "num_epochs": 15,
-        "batch_size": 128,
-        "mcts_iterations": 100,
-        "learning_rate": 0.001,
-        "buffer_size": 30000,
-        "device": device,
-        "checkpoint_dir": "checkpoints",
-        "resume_checkpoint": resume_checkpoint,
+        'num_iterations': 100,
+        'num_self_play_games': 100,
+        'num_epochs': 10,
+        'batch_size': 128,
+        'mcts_iterations': 100,
+        'learning_rate': 0.001,
+        'buffer_size': 10000,
+        'device': device,
+        'checkpoint_dir': "checkpoints",
+        'resume_checkpoint': "iteration_20.pt"
     }
 
-    trained_model = train_alphazero(**config, override_iteration=override_iteration)
+    import argparse
+    parser = argparse.ArgumentParser(description='AlphaZero Training')
+    parser.add_argument('--resume', type=str, default=None,
+                        help='Checkpoint to resume training from (e.g., iteration_10.pt)')
+    args = parser.parse_args()
 
-    # Save final model
+    if args.resume:
+        config['resume_checkpoint'] = args.resume
+
+    trained_model = train_alphazero(**config)
+
     final_model_path = "alphazero_final_model.pt"
     torch.save(trained_model.state_dict(), final_model_path)
     print(f"Training complete! Saved final model as {final_model_path}")

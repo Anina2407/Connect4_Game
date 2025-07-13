@@ -5,8 +5,8 @@ import pytest
 from collections import deque
 from torch.utils.data import DataLoader
 from unittest.mock import patch, MagicMock
+#from train_alphazero_CNN import ReplayBuffer, BoardDataset, CustomLoss, Connect4Net, train_alphazero # Uncomment if using AlphaZero with CNN and comment out the next line
 from train_alphazero import ReplayBuffer, BoardDataset, CustomLoss, Connect4Net, train_alphazero
-
 def test_replay_buffer_initialization():
     """
     Test that ReplayBuffer is correctly initialized with specified capacity.

@@ -26,6 +26,7 @@ from metrics.metrics import GameMetrics
 from agents.agent_MCTS.mcts import MCTSAgent
 from agents.agent_MCTS.hierarchical_mcts import HierarchicalMCTSAgent
 from agents.agent_MCTS.alphazero_mcts import AlphazeroMCTSAgent
+#from agents.alphazero.network_CNN import Connect4Net # Uncomment if using AlphaZero with CNN and comment out the next line
 from agents.alphazero.network import Connect4Net
 from agents.alphazero.inference import policy_value
 import torch 
@@ -222,7 +223,7 @@ def run_alphazero_vs_random(num_games: int, alpha_iterations=100):
     
     # Initialize agent
     model = Connect4Net()
-    checkpoint = torch.load("checkpoints/iteration_1.pt", map_location="cpu")
+    checkpoint = torch.load("checkpoints/iteration_17.pt", map_location="cpu")
     model.load_state_dict(checkpoint['model_state_dict'])
     model.eval()
     
@@ -316,7 +317,7 @@ def run_alphazero_vs_mcts(num_games: int, alpha_iterations=100):
     
     # Initialize agent
     model = Connect4Net()
-    checkpoint = torch.load("checkpoints/iteration_1.pt", map_location="cpu")
+    checkpoint = torch.load("checkpoints/iteration_17.pt", map_location="cpu")
     model.load_state_dict(checkpoint['model_state_dict'])
     model.eval()
     

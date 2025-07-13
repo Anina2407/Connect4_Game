@@ -1,16 +1,18 @@
 # Connect Four Game Simulation
 
-This project implements software agents that play the game Connect Four.  
-The main focus is on applying principles of software development, especially clean code.
+This project implements intelligent software agents that play the game **Connect Four**.  
+The focus is on applying principles of **software design**, **modular architecture**, and **clean code**.
 
-https://miro.com/app/board/uXjVIsyA0Qk=/
+> 💡 See our planning board: [Miro Link](https://miro.com/app/board/uXjVIsyA0Qk=/)
+
 
 
 ## Agents
 
 - **MCTS Agent:** Classic Monte Carlo Tree Search agent.
-- **Hierarchical MCTS Agent:** MCTS with with heuristics (immediate win/lose detection, two/three-in-a-row preference).
-- **AlphaZero MCTS Agent:** MCTS guided by a neural network (AlphaZero-style).
+- **Hierarchical MCTS Agent:** MCTS with heuristics (immediate win/lose detection, two/three-in-a-row preference).
+- **AlphaZero MCTS Agent:** MCTS guided by a neural network.
+   - different implementation regarding training and network architecture 
 - **Random Agent:** Selects random valid moves.
 - **Human Agent:** Allows a human to play via console input.
 
@@ -49,7 +51,7 @@ To run all tests:
 pytest tests/
 ```
 
-## Project Structure
+## 🗂️ Project Structure 🗂️
 
 ```
 Game/
@@ -68,6 +70,7 @@ Game/
 │       └── __init__.py
 ├── alphazero/
 │   ├── network.py
+|   ├── network_CNN.py
 │   ├── inference.py 
 │   ├── model.pt
 │   └── train_dummy_data.py
@@ -90,11 +93,34 @@ Game/
 │   └── test_training.py
 ├── game_utils.py
 ├── main.py
-└── requirements.txt
+├── requirements.txt
+├── train_alphazero_CNN.py
 └── train_alphazero.py
 ```
+## Training Data & Pretrained Data
+Pre-trained AlphaZero models (with residual layers) are available here:
+[ Google Drive Link](https://drive.google.com/drive/folders/1S6eljs_s0Wlq_DL237q-xXZV4ZdG_5Ou)
+Default used: Iteration 17
+To switch, update the checkpoint folder and the path in main.py
+To train more data with residual Layer: 
+```bash
+python train_alphazero.py
+```
 
-## Code of Honour & Acknowledgements
-- AI assistance (GitHub Copilot and ChatGPT) was used to help write comments, improve code style, and suggest test improvement of test covering.
-- All code was written by human first and each suggestion from AI was reviewed and adapted to fit the project requirements.
+Pre-trained AlphaZero models (with only convolutional Layer) are available here:
+[ Google Drive Link]()
+To switch, update the checkpoint folder and the path in main.py
+
+To train more data with convolutional Layer, replace imports in all files (search for 'CNN' to quickly locate the relevant sections): 
+```bash
+python train_alphazero_CNN.py
+```
+
+## Profiling
+Performance scripts for benchmarking different agents are available under profiling/.
+
+## Code of Honor & Acknowledgements
+- This project was build by Mohammad, Reihaneh, Shokoofeh and Anina
+- AI tools (GitHub Copilot and ChatGPT) were used to assist with documentation, code refactoring, and test coverage ideas
+- All code was authored by humans first, and AI-generated suggestions were reviewed before integration.
 

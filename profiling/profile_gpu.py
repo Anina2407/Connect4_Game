@@ -1,5 +1,6 @@
 import torch
 from torch.profiler import profile, record_function, ProfilerActivity
+#from agents.alphazero.network_CNN import Connect4Net # Uncomment if using AlphaZero with CNN and comment out the next line
 from agents.alphazero.network import Connect4Net
 
 # Initialize model and dummy input
