@@ -5,8 +5,6 @@ The focus is on applying principles of **software design**, **modular architectu
 
 > 💡 See our planning board: [Miro Link](https://miro.com/app/board/uXjVIsyA0Qk=/)
 
-
-
 ## Agents
 
 - **MCTS Agent:** Classic Monte Carlo Tree Search agent.
