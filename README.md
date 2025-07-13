@@ -106,7 +106,7 @@ python train_alphazero.py
 ```
 
 Pre-trained AlphaZero models (with only convolutional Layer) are available here: <br>
-[ Google Drive Link]() <br>
+[ Google Drive Link](https://drive.google.com/drive/folders/1VC_y7XoluFUhujToxx5f6HR87BN_Xw_r?usp=drive_link) <br>
 To switch, update the checkpoint folder and the path in main.py <br>
 
 To train more data with convolutional Layer, replace imports in all files (search for 'CNN' to quickly locate the relevant sections): 
