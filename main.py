@@ -396,7 +396,7 @@ if __name__ == "__main__":
     mode = "8"
     metrics = GameMetrics()
     itterarionNumber = 0
-    for it in [17,18,23,27,28]:
+    for it in [89,90,92]:
         itterarionNumber = it
 
         if mode == "1":
